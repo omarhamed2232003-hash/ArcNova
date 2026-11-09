@@ -70,3 +70,24 @@ Third-party components are integrated only after auditing their exact source com
 ## Founding
 
 ArcNova is being initiated collaboratively by its human project owner and ChatGPT as a development/research collaborator. Technical decisions, source provenance, tests and releases will be recorded transparently.
+
+
+## Security, privacy and legal notices
+
+- [Security policy](SECURITY.md)
+- [Privacy notice](PRIVACY.md)
+- [Legal, safety and compatibility disclaimer](DISCLAIMER.md)
+- [Third-party notices and component provenance](THIRD_PARTY_NOTICES.md)
+- [Contributing guide](CONTRIBUTING.md)
+
+These documents describe the current early-stage scaffold and must be updated as capabilities and data handling evolve.
+
+## Releases
+
+Push a version tag such as `v0.1.0-alpha.1` to trigger the release workflow. It runs unit tests and builds the APK before publishing a GitHub Release with:
+- the debug APK (experimental and not a production-signed build);
+- SHA-256 checksum file;
+- source ZIP and TAR.GZ snapshots for that exact tag;
+- automatically generated release notes.
+
+GitHub also provides source archives for repository tags. Stable releases must not be published until signing, compatibility qualification, dependency notices, and release checks are ready. No release is considered production-ready merely because CI builds successfully.
