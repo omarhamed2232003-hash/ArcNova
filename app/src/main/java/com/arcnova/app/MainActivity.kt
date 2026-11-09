@@ -8,11 +8,11 @@ import android.os.Looper
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.view.Gravity
-import androidx.activity.ComponentActivity
-import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import com.arcnova.app.engine.ArchiveFormat
 import com.arcnova.app.engine.ArchiveRiskAssessment
 import com.arcnova.app.engine.ArchiveFormatDetector
@@ -142,10 +142,10 @@ class MainActivity : ComponentActivity() {
                     selectedArchive = source
                     fileLabel.text = buildString {
                         append("Selected: "); append(source.displayName ?: "Unknown")
-                        append("\\nSize: "); append(source.declaredSizeBytes?.let(::formatBytes) ?: "Unknown")
-                        append("\\nDetected extension: "); append(extension.format.label)
-                        append("\\nHeader: "); append(signature?.label ?: "Unavailable")
-                        append("\\nZIP extraction: "); append(if (supported) "Supported" else "Not supported yet")
+                        append("\nSize: "); append(source.declaredSizeBytes?.let(::formatBytes) ?: "Unknown")
+                        append("\nDetected extension: "); append(extension.format.label)
+                        append("\nHeader: "); append(signature?.label ?: "Unavailable")
+                        append("\nZIP extraction: "); append(if (supported) "Supported" else "Not supported yet")
                     }
                     extractButton.isEnabled = supported
                     inspectButton.isEnabled = supported
