@@ -13,6 +13,7 @@ import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.arcnova.app.engine.ArchiveFormat
 import com.arcnova.app.engine.ArchiveRiskAssessment
 import com.arcnova.app.engine.ArchiveFormatDetector
 import com.arcnova.app.engine.ArchiveSignatureDetector
