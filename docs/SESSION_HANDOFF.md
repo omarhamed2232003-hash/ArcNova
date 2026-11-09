@@ -108,3 +108,13 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Latest verified development branch HEAD: `4444326fdd00a6c449cb943130bc53e0e2a837dc`. PR #1 remains open, Draft, not merged; base/main remains `ff50413b044cc788f7d1604728a365a76119889f`. No work on main.
 - Documentation commits triggered unit-test workflow Runs #147/#148 (on `4e69480`) and #149 (on `4444326`); at snapshot time #147/#148 were in progress and #149 queued. Verify live CI before further changes.
 - Next engineering action: let these documentation-only CI runs finish, then continue Phase 1 from the actual source and CI state. Keep the experimental Central Directory path separate until it is intentionally integrated, reviewed, and tested. Do not create another APK.
+
+
+## Phase 1 integration increment — 2026-11-09
+
+- Wired the app's live ZIP extraction action in `MainActivity.startExtraction()` from the legacy `ZipExtractionEngine.extract(...)` streaming route to `ZipExtractionEngine.extractCentralDirectory(...)`.
+- The live route now uses a bounded seekable archive spool in `cacheDir`, Central Directory preflight before staged output creation, per-entry actual size/CRC/expansion validation, cancellation, and existing filesystem rollback. The existing transactional SAF tree-copy remains the second stage and is unchanged.
+- App-level archive spool cap is currently 2 GiB (`MAX_ARCHIVE_INPUT_BYTES`); this is a deliberate bound, not a claim of unlimited ZIP support. Revisit based on real cache/storage/device tests before raising it.
+- The old `ZipExtractionEngine.extract(...)` implementation remains available and covered by tests as a legacy streaming path; do not delete it until regression and compatibility review is complete.
+- This change is code-written only at commit `8ea99fe419970c69fed677de7a7f47d44353aa23`; it must pass GitHub Actions before being called CI-tested. No APK is authorized. No Android device test has been performed.
+- Next: verify CI for the integration commit, inspect exact job/test result, then add targeted integration coverage for the new 2 GiB app-bound wiring/configuration if useful; review cancellation, large archive cache capacity, provider stream behavior, and progress/copy rollback semantics before declaring Phase 1 complete.
