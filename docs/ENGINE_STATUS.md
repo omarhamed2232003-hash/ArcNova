@@ -3,7 +3,7 @@
 | Capability | Status | Notes |
 |---|---|---|
 | Android document picker | Implemented, CI-tested | SAF-based archive and destination selection; destination copy uses transactional created-document tracking, collision checks, cancellation, and reverse-order rollback; incomplete provider rollback is reported explicitly. Real provider/device behavior remains pending. |
-| ZIP extraction | Implemented, CI-tested | Bounded output, safe paths, cancellation, no overwrite, transactional rollback of all files/directories created by a failed extraction; pre-existing content is preserved. SAF copy into the user-selected tree is still not transactional. |
+| ZIP extraction | Implemented, CI-tested | Bounded output, safe paths, cancellation, no overwrite, transactional rollback of all files/directories created by a failed extraction; pre-existing content is preserved. The SAF copy is separately transactional through created-document tracking and reverse-order rollback; real provider/device behavior remains pending. |
 | ZIP inspection | Implemented, CI-tested | Streams entries without writing them; reports unsafe paths and duplicates |
 | ZIP heuristic risk assessment | Implemented, CI-tested | Advisory indicators only; not malware scanning |
 | Generic file signature detection | Implemented, CI-tested | Bounded header recognition; not full-file validation |
