@@ -51,7 +51,7 @@ class MainActivity : Activity() {
             text = "ArcNova"; textSize = 32f; gravity = Gravity.CENTER
         })
         root.addView(TextView(this).apply {
-            text = "Archive manager • Android"; textSize = 16f
+            text = "Universal file & software toolkit • Android"; textSize = 16f
             gravity = Gravity.CENTER; setPadding(0, 8, 0, 28)
         })
         root.addView(Button(this).apply {

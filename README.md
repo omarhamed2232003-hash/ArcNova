@@ -2,9 +2,9 @@
 
 > **Important:** ArcNova is software — it is not a game. This repository contains no games, game data, installers, ROMs, repacks, or copyrighted game files. It contains only ArcNova's source code, documentation, and project resources. Any game or installer files used for testing must be supplied separately by users who have the legal right to use them.
 
-**ArcNova is an Android-first archive, compression, PC game installation and compatibility platform.**
+**ArcNova is an Android-first universal file and software toolkit for advanced file operations, package analysis, installer handling, game-data workflows, and PC software compatibility.**
 
-Its two primary game compatibility goals are **Steam PC games** and **user-provided FitGirl repacks**, alongside general Windows games/software installers. The project combines a universal archive manager, specialist decompression pipelines, and a managed compatibility runtime for Android ARM64.
+ArcNova is not an archive-only app and is not a game. It brings together a multi-purpose file toolkit, specialist format and codec engines, installer analysis and execution workflows, game-data inspection, and a managed compatibility runtime for Android ARM64. Steam PC games and user-provided FitGirl repacks are important compatibility targets within a much broader toolset.
 
 SREP + LOLZ / FreeArc-style pipelines are first-class FitGirl targets. Steam/Proton is a first-class runtime target. Neither is implemented yet.
 
@@ -12,10 +12,12 @@ SREP + LOLZ / FreeArc-style pipelines are first-class FitGirl targets. Steam/Pro
 
 ## Product tracks
 
-1. **Universal archive manager** — detect, inspect, test, extract, and eventually create common archive formats and multi-part archives.
-2. **FitGirl / specialist repack pipeline** — inspect split volumes, parse supported containers (including FreeArc where validated), identify codec/filter chains, and decode with legally distributable implementations. SREP and LOLZ are major targets, not currently implemented.
-3. **Steam PC game path** — manage a compatible runtime, use Steam through Valve's official client/distribution flow, install user-owned games, manage per-game Proton/Wine profiles, and launch compatible titles.
-4. **Standalone PC installer path** — detect supported setup packages, distinguish unpacking from setup execution, and run supported Windows installers in an isolated compatibility environment.
+1. **Universal file toolkit** — identify unknown files, inspect metadata and signatures, validate integrity, compare, split/join, transform, convert, and perform safe batch operations.
+2. **Format and codec lab** — support common and specialist containers, compression algorithms, filters, multipart sets, and game-specific package formats through independent, testable engines.
+3. **Installer intelligence** — identify setup technologies, inspect package contents, extract supported payloads, and execute supported installers in an isolated compatibility environment.
+4. **Game-data toolkit** — inspect and extract game packages, assets, and resource containers where formats are understood and legally supportable.
+5. **PC software and game compatibility** — manage runtime profiles and launch supported Windows software and games, including Steam through Valve's official client/distribution flow.
+6. **FitGirl / specialist repack pipeline** — inspect split volumes, parse supported containers (including FreeArc where validated), identify codec/filter chains, and decode with legally distributable implementations. SREP and LOLZ remain major targets, not currently implemented.
 
 FitGirl is treated as a **user-supplied archive/installer format target**, not a source of game payloads for this repository. ArcNova will not host or distribute copyrighted game files or proprietary repack plugins. Users must provide game files they are legally entitled to use.
 
