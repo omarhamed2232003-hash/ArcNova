@@ -57,8 +57,7 @@ class CentralDirectoryZipBackendTest {
                 val result = archive.copyEntry(archive.entries.single(), output)
                 assertTrue(payload.contentEquals(output.toByteArray()))
                 assertEquals(payload.size.toLong(), result.bytesCopied)
-                assertEquals(0L, spoolFile.length() - archive.entries.single().compressedSize -
-                    (spoolFile.length() - archive.entries.single().compressedSize))
+                assertEquals(payload.size.toLong(), archive.entries.single().size)
             } finally {
                 archive.close()
             }
