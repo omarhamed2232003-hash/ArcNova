@@ -78,7 +78,7 @@ object ArchiveRiskAssessment {
     private val SCRIPT_EXTENSIONS = setOf("bat", "cmd", "ps1", "vbs", "js", "sh")
     private val ARCHIVE_EXTENSIONS = setOf("zip", "7z", "rar", "tar", "gz", "bz2", "xz", "zst")
     private val DOUBLE_EXTENSION_PATTERN =
-        Regex(""".+\\.(pdf|jpg|jpeg|png|txt|doc|docx)\\.(exe|scr|com|bat|cmd|js|vbs|ps1)$"")
+        Regex(""".+\.(pdf|jpg|jpeg|png|txt|doc|docx)\.(exe|scr|com|bat|cmd|js|vbs|ps1)$"")
 
     data class ArchiveRiskThresholds(
         val maxEntriesWarning: Int = 10_000,
