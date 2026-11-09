@@ -11,7 +11,7 @@
 - Open PR: [#1 — Make ZIP extraction and SAF destination copy transactional](https://github.com/omarhamed2232003-hash/ArcNova/pull/1)
 - PR #1 is **open, Draft, not merged**. Do not merge it or modify `main` without explicit owner authorization.
 - Verified `main` HEAD: `ff50413b044cc788f7d1604728a365a76119889f`.
-- Verified development HEAD at this snapshot: `c7b82167cc0b79429d789895751f80beccd02164`.
+- Verified development HEAD at this snapshot: `fc81f1e9bb1cb76dc83f394ce22d396aad565c0a`.
 - Development HEAD is ahead of `main`; all work described below is on the development branch. `main` has not been changed by this work. This does not mean `main` has been independently proven stable.
 
 ## Current CI truth
@@ -76,7 +76,7 @@ Latest completed work:
 4. Changed CI to unit tests only (no per-change Debug APK).
 5. Confirmed Run #88 passed on `8fbae0f...`.
 
-**Current concrete task:** obtain CI validation for `c7b8216` and continue adversarial ZIP coverage: actual streamed total-output limit, output-write failure rollback, and close/spool-cleanup behavior. The reverse-order file/directory conflict test passed CI on commit `426677c` (run #42687654847). The next commit `49d6398` adds tests for an understated Central Directory size (to exercise the actual streamed total-output limit) and an output stream that throws after partial writes while remaining caller-owned; these newest tests are awaiting CI. Review the full ZIP regression suite after these additions. Keep the Central Directory route experimental; do not switch the production default until all tests and Android device/provider checks justify it. Investigate Zip4j only if encrypted/split ZIP becomes an active requirement.
+**Current concrete task:** Run #136 passed for code commit `49d6398`, validating the understated Central Directory size backend test and output-stream failure/ownership test. The next focused increment is an integration test that drives the actual streamed total-output limit through `extractCentralDirectory` and verifies rollback of both a partially written current file and earlier output, while preserving pre-existing content and cleaning the spool. After that, review close/spool-cleanup behavior and the full ZIP regression suite. Keep the Central Directory route experimental; do not switch the production default until all tests and Android device/provider checks justify it. Investigate Zip4j only if encrypted/split ZIP becomes an active requirement.
 
 After that, re-evaluate Phase 1 exit criteria and the best next dependency-driven increment. Keep the broader universal file-analysis foundation in view; do not treat the ZIP task as the whole product.
 
