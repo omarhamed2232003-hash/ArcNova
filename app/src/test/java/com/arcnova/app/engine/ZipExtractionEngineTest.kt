@@ -675,6 +675,28 @@ class ZipExtractionEngineTest {
     }
 
 
+    @Test fun centralDirectoryDeclaredOutputLimitUsesPublicLimitExceptionBeforeWriting() {
+        val parent = tempDir()
+        val destination = File(parent, "new-destination")
+        val cache = tempDir()
+        try {
+            org.junit.Assert.assertThrows(ZipExtractionLimitException::class.java) {
+                ZipExtractionEngine.extractCentralDirectory(
+                    ByteArrayInputStream(archive("payload.bin" to ByteArray(128))),
+                    destination,
+                    cache,
+                    maxArchiveBytes = 4096,
+                    policy = ExtractionPolicy(maxTotalOutputBytes = 64)
+                )
+            }
+            assertFalse(destination.exists())
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            parent.deleteRecursively()
+            cache.deleteRecursively()
+        }
+    }
+
     @Test fun centralDirectorySpoolInputLimitUsesExtractionExceptionAndRemovesNewDestination() {
         val parent = tempDir()
         val destination = File(parent, "new-destination")
