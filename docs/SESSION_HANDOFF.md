@@ -258,3 +258,10 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Root cause: the new test used `ByteArray.indexOf(ByteArray)`, but Kotlin's `indexOf` searches for one `Byte`, not a byte subsequence.
 - Replaced it with a bounded explicit subsequence search in the test fixture. Fix commit: `a58cebbe3c042b7299c1dbffa27c77657a1e9b15`.
 - Matching CI for this fix is queued as Run #250 (push) at handoff time. Verify its exact SHA/result before calling the ZIP inspection changes CI-tested. Earlier failures #242/#243 must remain recorded as test-fixture compilation failure, not as production code failure.
+
+
+### CI follow-up — deterministic CRC corruption fixture (2026-11-10)
+
+- Runs #250–#253 compiled production and test Kotlin successfully and executed 145 tests, but the new CRC test failed at its assertion expecting a CRC-specific exception. The original fixture used DEFLATED data; flipping a compressed byte can cause decompression failure before the backend reaches its explicit CRC comparison.
+- Reworked the fixture to create a ZIP STORED entry with known size and CRC, then flip one payload byte while leaving the central-directory CRC unchanged. This isolates the intended CRC mismatch path. Fix commit: `e87738029b06da2fc33f6897b79e956a084abdf0`.
+- This is a test-fixture correction, not a change to production ZIP validation. Await and inspect matching CI before marking this test passed.
