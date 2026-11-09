@@ -47,7 +47,8 @@ Known implementation baseline:
 - ZIP extraction engine has safe path validation, overwrite refusal, entry/file/total-output/expansion-ratio limits, cancellation, streaming writes, and cleanup of the partially written current file on failure.
 - SAF output currently stages extracted data in app cache before copying to the selected document tree. This may temporarily require extra storage; a direct SAF output-sink design is a future improvement, but preserve current behavior until a tested replacement is ready.
 - Existing unit tests cover normal extraction, traversal rejection, limits, cancellation, overwrite refusal, backslash traversal, and caller-owned input-stream lifecycle.
-- File/archive detection code includes signature/extension hints for several common formats and multipart naming patterns.
+- File/archive detection code includes signature/extension hints for common formats, specialist compression extensions (WinRK, KGB, UHARC, ZPAQ, DGCA, StuffIt), game packages (Unreal PAK/IoStore, Unity AssetBundles, Source VPK, XP3, RPA), and multipart naming patterns. These are filename hints unless a signature detector explicitly validates bytes.
+- `FormatCapabilityRegistry` is now the typed operation-level inventory for general, specialist, and game formats. It records detection/inspection/extraction/creation/encoding/install/launch states. ZIP extraction is the only archive extraction operation currently marked implemented and CI-tested; roadmap entries must not be presented as working decoders.
 - StreamingTransfer is a bounded stream-copy primitive, not an archive extractor.
 - WindowsExecutableDetector and WindowsInstallerDetector are preliminary metadata/heuristic detectors, not execution engines.
 - RuntimeCompatibility is a platform-neutral candidate planner/heuristic, not an installed Wine/Proton runtime and not proof that a game can launch.
@@ -141,12 +142,11 @@ When using GitHub API tools, write operations must be sequential and use exact c
 ## 9. Suggested next engineering priorities
 
 Re-evaluate against current source/CI before choosing; do not treat this list as a rigid new milestone order.
-1. Turn the format roadmap into a typed capability/support registry: format IDs, extensions/signatures, operation-level capability states, Android ABI feasibility, implementation/decoder provenance, license state, version coverage, and validation evidence. Planned targets must not appear as implemented engines.
-2. Improve the universal file-analysis foundation: richer signature detection, unknown-file reporting, safe metadata inspection, checksums, and comparison.
-3. Improve archive destination handling and failure rollback, including considering direct SAF streaming to avoid cache duplication.
-4. Expand common-format engines only after dependency/license and Android ARM64 audits; test each engine with fixtures and malformed/adversarial inputs.
-5. Research specialist formats one by one and document feasibility, native decoder options, licensing, encryption/key needs, and real Android test plan.
-6. Build installer/runtime layers only after a real, legally distributable component plan and measurable device validation.
+1. Expand the universal file-analysis foundation: richer byte-signature detection, unknown-file reports, safe metadata inspection, checksums, and file comparison. The initial operation-level format registry now exists; continue enriching it with signatures, decoder provenance, license state, version coverage, and validation evidence as those facts are established.
+2. Improve archive destination handling and failure rollback, including considering direct SAF streaming to avoid cache duplication.
+3. Audit and integrate a common-format decoder only after dependency/license and Android ARM64 review; test with legal fixtures and malformed/adversarial inputs.
+4. Research specialist formats one by one and document feasibility, native decoder options, licensing, encryption/key needs, and a real Android test plan.
+5. Build installer/runtime layers only after a real, legally distributable component plan and measurable device validation.
 
 ## 10. Communication and handoff format
 
