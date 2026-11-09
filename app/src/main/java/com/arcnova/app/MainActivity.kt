@@ -19,6 +19,7 @@ import com.arcnova.app.engine.ArchiveSource
 import com.arcnova.app.engine.ExtractionPolicy
 import com.arcnova.app.engine.ZipExtractionEngine
 import com.arcnova.app.engine.ZipExtractionProgress
+import com.arcnova.app.engine.ZipExtractionCancelledException
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -165,7 +166,7 @@ class MainActivity : Activity() {
             } catch (error: Exception) {
                 mainHandler.post {
                     statusLabel.text = when (error) {
-                        is InterruptedException -> "Extraction cancelled."
+                        is InterruptedException, is ZipExtractionCancelledException -> "Extraction cancelled."
                         else -> "Extraction failed: ${error.message ?: error.javaClass.simpleName}"
                     }
                     setBusy(false)

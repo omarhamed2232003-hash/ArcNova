@@ -93,4 +93,54 @@ class ZipExtractionEngineTest {
             dir.deleteRecursively()
         }
     }
+
+    @Test fun rejectsBackslashTraversal() {
+        val dir = tempDir()
+        try {
+            org.junit.Assert.assertThrows(UnsafeArchivePathException::class.java) {
+                ZipExtractionEngine.extract(
+                    ByteArrayInputStream(archive("..\\\\escape.txt" to byteArrayOf(1))),
+                    dir
+                )
+            }
+            assertFalse(File(dir.parentFile, "escape.txt").exists())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun refusesToOverwriteExistingFiles() {
+        val dir = tempDir()
+        try {
+            File(dir, "same.txt").writeText("keep me")
+            org.junit.Assert.assertThrows(ZipExtractionException::class.java) {
+                ZipExtractionEngine.extract(
+                    ByteArrayInputStream(archive("same.txt" to "replace me".toByteArray())),
+                    dir
+                )
+            }
+            assertEquals("keep me", File(dir, "same.txt").readText())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun leavesCallerOwnedInputStreamOpen() {
+        val dir = tempDir()
+        var closed = false
+        val input = object : ByteArrayInputStream(archive("a.txt" to byteArrayOf(1))) {
+            override fun close() {
+                closed = true
+                super.close()
+            }
+        }
+        try {
+            ZipExtractionEngine.extract(input, dir)
+            assertFalse(closed)
+        } finally {
+            input.close()
+            dir.deleteRecursively()
+        }
+    }
+
 }
