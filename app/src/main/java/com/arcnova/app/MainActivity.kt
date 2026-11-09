@@ -13,7 +13,7 @@ import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.arcnova.app.engine.ArchiveFormat
+import com.arcnova.app.engine.ArchiveRiskAssessment
 import com.arcnova.app.engine.ArchiveFormatDetector
 import com.arcnova.app.engine.ArchiveSignatureDetector
 import com.arcnova.app.engine.ArchiveSource
@@ -173,7 +173,16 @@ class MainActivity : Activity() {
                     val summary = buildString {
                         append("Files: ${report.fileCount}\nFolders: ${report.directoryCount}\n")
                         append("Uncompressed: ${formatBytes(report.totalUncompressedBytes)}\n")
-                        append("Unsafe paths: ${report.unsafePathCount}\nDuplicate names: ${report.duplicateNameCount}\n\n")
+                        append("Unsafe paths: ${report.unsafePathCount}\nDuplicate names: ${report.duplicateNameCount}\n")
+                        append("Risk findings: ${risk.findings.size} • Affected entries: ${risk.totalAffectedEntries}\n")
+                        if (risk.findings.isNotEmpty()) {
+                            risk.findings.forEach { finding ->
+                                append("• [${finding.severity}] ${finding.id}: ${finding.affectedEntries}\n")
+                            }
+                        } else {
+                            append("No heuristic risk indicators found. This is not a malware scan.\n")
+                        }
+                        append("\n")
                         append(preview.ifBlank { "No entries found." })
                         if (report.entries.size > 40) append("\n… and ${report.entries.size - 40} more")
                     }
