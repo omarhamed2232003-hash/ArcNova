@@ -1,7 +1,7 @@
 # ArcNova — Current Session Handoff
 
 > **Purpose:** Fast, reliable recovery when a new AI chat/session opens. Read this after `AGENTS.md`, then re-check GitHub before acting. This is a snapshot, not an authority over live repository state.
-> **Snapshot verified:** 2026-11-09 14:42 UTC.
+> **Snapshot verified:** 2026-11-09 17:09 UTC.
 
 ## Repository and working lane
 
@@ -11,17 +11,16 @@
 - Open PR: [#1 — Make ZIP extraction and SAF destination copy transactional](https://github.com/omarhamed2232003-hash/ArcNova/pull/1)
 - PR #1 is **open, Draft, not merged**. Do not merge it or modify `main` without explicit owner authorization.
 - Verified `main` HEAD: `ff50413b044cc788f7d1604728a365a76119889f`.
-- Verified development HEAD: `4ffc0cb2bbf3f01659c6c81469e31408adab85e1`.
+- Verified development HEAD at this snapshot: `09ae258a2528a71e9a38045fd351dc6781452673`.
 - Development HEAD is ahead of `main`; all work described below is on the development branch. `main` has not been changed by this work. This does not mean `main` has been independently proven stable.
 
 ## Current CI truth
 
 - Workflow: `.github/workflows/android.yml`.
 - Current policy: run unit tests only with `gradle testDebugUnitTest`; no automatic Debug APK build or artifact upload on each change.
-- Latest completed successful test run: [Run #97](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42632990138) on commit `2cc4fdd4201e321e0b2db12f564c3f86152c750f` — **completed / success**. Job `test` and the `Run unit tests` step passed. This includes the exact-entry-count boundary test.
-- [Run #96](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42632625435) passed the truncated compressed-payload rollback test; [Run #95](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42632111783) passed the corrected CRC Data Descriptor test.
-- ZIP backend evaluation is recorded in `docs/ZIP_BACKEND_EVALUATION.md`. Commons Compress 1.28.0 was added as a temporary evaluation dependency with central-directory spike tests; it is not yet wired into production extraction.
-- [Run #100](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42633416519) for the spike test commit `aeddab2...` is currently running the unit tests. The branch then advanced with a third-party notice update to `4ffc0cb...`; re-check latest CI before claiming that exact HEAD is validated.
+- Latest completed successful test run: [Run #110](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42661386820) on commit `09ae258a2528a71e9a38045fd351dc6781452673` — **completed / success**. Job `test` and its `Run unit tests` step passed.
+- Commons Compress 1.28.0 is a temporary evaluation dependency. Its `ZipFile` Central Directory spike tests passed for normal listing/streaming, missing Central Directory rejection, orphan local record exclusion, duplicate central-directory name enumeration, CRC mismatch detection responsibility, and ZIP64 reading. It is not wired into production extraction.
+- The production ZIP engine remains the existing bounded `ZipInputStream` implementation until a complete adapter passes all regression and adversarial tests.
 - CI success does not prove physical Android/SAF provider behavior or release readiness.
 - Previous Run #87 on `bed52b8...` also passed. Do not confuse older run results with the latest run.
 
@@ -72,7 +71,7 @@ Latest completed work:
 4. Changed CI to unit tests only (no per-change Debug APK).
 5. Confirmed Run #88 passed on `8fbae0f...`.
 
-**Next concrete engineering task:** finish validating the Commons Compress spike (dependency resolution and `ZipFile` Central Directory tests). If it passes, expand adversarial coverage (CRC mismatch, orphan local records, duplicate Central Directory names, Zip64, truncated payload) and only then design the adapter that feeds its entry streams into ArcNova's existing bounded transactional writer. Do not replace the production extractor until the full regression suite passes. Keep Zip4j as a fallback for encrypted/split ZIP if needed.
+**Next concrete engineering task:** design the Commons Compress adapter and bounded seekable spool. The adapter must enumerate and validate Central Directory metadata before writing, reject duplicate normalized paths, enforce ArcNova entry/output/path/expansion limits, compute CRC32 during payload streaming (the library stream does not do this automatically), preserve cancellation and transactional rollback, and clean up the private temp archive on every exit path. Inspect existing policy/writer interfaces before implementation. Do not replace the production extractor until the full regression suite passes. Keep Zip4j as a specialist fallback for encrypted/split ZIP if needed.
 
 After that, re-evaluate Phase 1 exit criteria and the best next dependency-driven increment. Keep the broader universal file-analysis foundation in view; do not treat the ZIP task as the whole product.
 
