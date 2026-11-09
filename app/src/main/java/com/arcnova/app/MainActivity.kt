@@ -160,6 +160,7 @@ class MainActivity : Activity() {
                 val report = input.use {
                     ZipInspectionEngine.inspect(it, cancellationRequested = { cancelRequested.get() })
                 }
+                val risk = ArchiveRiskAssessment.assess(report)
                 val preview = report.entries.take(40).joinToString("\n") { entry ->
                     val marker = when {
                         entry.hasUnsafePath -> "⚠ "
