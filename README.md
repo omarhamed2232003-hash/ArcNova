@@ -1,5 +1,7 @@
 # ArcNova
 
+> **Important:** ArcNova is software — it is not a game. This repository contains no games, game data, installers, ROMs, repacks, or copyrighted game files. It contains only ArcNova's source code, documentation, and project resources. Any game or installer files used for testing must be supplied separately by users who have the legal right to use them.
+
 **ArcNova is an Android-first archive, compression, PC game installation and compatibility platform.**
 
 Its two primary game compatibility goals are **Steam PC games** and **user-provided FitGirl repacks**, alongside general Windows games/software installers. The project combines a universal archive manager, specialist decompression pipelines, and a managed compatibility runtime for Android ARM64.
