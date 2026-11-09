@@ -33,6 +33,33 @@ FitGirl is treated as a **user-supplied archive/installer format target**, not a
 - **Verification/safety:** checksums, safe paths, output limits, temporary output, cleanup and installation manifests.
 - **Compatibility lab:** legal fixtures, smoke tests, per-device/per-game profiles, diagnostics and benchmarks.
 
+## Advanced format and cross-environment support roadmap
+
+ArcNova's goal is not limited to formats that already have mature Android applications. It will investigate and, where technically and legally feasible, implement native Android ARM64 support for formats traditionally handled by Windows, Linux, macOS, command-line utilities, or format-specific tools. "Cross-environment" means users should not need to leave ArcNova or run the original desktop application for supported operations; it does not imply that every format can be decoded without its original proprietary components.
+
+The following are explicit research and implementation targets, not claims of current support:
+
+### Specialist compression and archive formats
+
+- **FreeArc / .arc**, including multi-volume archives and validated codec/filter chains.
+- **SREP and LOLZ** codec/filter stages used by specialist repack pipelines, subject to lawful implementation or redistribution rights.
+- **WinRK / RK**, **KGB / .kgb**, **UHARC / .uha**, **ZPAQ / .zpaq**, **DGCA / .dgc**, and **StuffIt / .sit / .sitx**.
+- Existing common formats such as ZIP, 7z, RAR, TAR, gzip, bzip2, XZ and Zstandard remain part of the general-purpose format roadmap.
+
+### Game package and asset formats
+
+- **Unreal Engine:** PAK and IoStore containers.
+- **Unity:** AssetBundles and related asset containers.
+- **Source engine:** VPK.
+- **Visual-novel and engine packages:** XP3 and RPA.
+- **Oodle Kraken / Leviathan:** investigate decoding integration only where the required SDK, patent, and redistribution permissions allow it.
+
+### Cross-environment engineering requirements
+
+For each target, ArcNova will track: format/version identification, Android ARM64 feasibility, open specification or lawful decoder availability, encryption/key requirements, multipart and solid-archive behavior, streaming and memory limits, test fixtures, correctness checks, and performance on real devices. A format will be marked supported only after reproducible tests pass on Android; desktop-only support or theoretical detection will be labelled separately.
+
+Where a format depends on proprietary codecs, keys, or licensed SDKs, ArcNova will not bundle unauthorized binaries or claim full support. The project may provide metadata inspection, compatibility detection, or a user-supplied external decoder workflow instead.
+
 ## Runtime performance policy
 
 There is no universally fastest Wine/Proton + Box64/FEX + graphics-driver combination. ArcNova will probe device capabilities and choose only compatible candidates, then prefer measured per-game profiles. It must account for ARM64 ABI, Vulkan extensions/version, memory pressure, thermal headroom, audio, input and storage behavior. Generic heuristics are fallbacks, not benchmark claims.
