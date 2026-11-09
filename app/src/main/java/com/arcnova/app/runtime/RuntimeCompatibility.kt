@@ -70,8 +70,12 @@ object RuntimePlanSelector {
 
         val backend = when {
             requiresDirectX12 -> DirectXBackend.VKD3D_PROTON
-            DirectXBackend.DXVK in selected.directXBackends -> DirectXBackend.DXVK
-            else -> DirectXBackend.WINE_D3D
+            device.vulkanAvailable && DirectXBackend.DXVK in selected.directXBackends ->
+                DirectXBackend.DXVK
+            DirectXBackend.WINE_D3D in selected.directXBackends -> DirectXBackend.WINE_D3D
+            else -> return RuntimeSelection.Unsupported(
+                listOf("${selected.id}: no graphics backend matches the device capabilities")
+            )
         }
         val workers = recommendedWorkers(device)
         val graphics = if (device.vulkanAvailable) GraphicsApi.VULKAN else GraphicsApi.OPENGL
@@ -99,9 +103,12 @@ object RuntimePlanSelector {
         if (requires32BitGame && (!device.supports32Bit || !candidate.supports32Bit)) {
             add("32-bit game execution is unsupported")
         }
-        if (requiresDirectX12 && DirectXBackend.VKD3D_PROTON !in candidate.directXBackends) {
-            add("DirectX 12 translation backend is unavailable")
-        }
+        if (requiresDirectX12 &&
+            (!device.vulkanAvailable || DirectXBackend.VKD3D_PROTON !in candidate.directXBackends)
+        ) add("DirectX 12 requires a compatible Vulkan/VKD3D-Proton path")
+        if (!requiresDirectX12 && !device.vulkanAvailable &&
+            DirectXBackend.WINE_D3D !in candidate.directXBackends
+        ) add("no non-Vulkan graphics fallback is available")
         if (device.availableRamBytes < MINIMUM_RUNTIME_RAM_BYTES) {
             add("insufficient available RAM for a safe runtime start")
         }
