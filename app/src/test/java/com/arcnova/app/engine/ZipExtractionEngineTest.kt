@@ -236,6 +236,55 @@ class ZipExtractionEngineTest {
         }
     }
 
+    @Test fun extractsMultiMegabyteFileWithExactContentsAndTotals() {
+        val dir = tempDir()
+        val payload = ByteArray(3 * 1024 * 1024) { index -> (index % 251).toByte() }
+        try {
+            val result = ZipExtractionEngine.extract(
+                ByteArrayInputStream(archive("large/payload.bin" to payload)),
+                dir
+            )
+            val extracted = File(dir, "large/payload.bin")
+            assertEquals(1, result.filesExtracted)
+            assertEquals(payload.size.toLong(), result.bytesWritten)
+            assertEquals(payload.size.toLong(), extracted.length())
+            assertTrue(payload.contentEquals(extracted.readBytes()))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun inputReadFailureRollsBackPreviouslyCreatedOutput() {
+        val dir = tempDir()
+        val payload = ByteArray(128 * 1024) { 7 }
+        val bytes = archive("nested/large.bin" to payload)
+        val failingInput = object : java.io.InputStream() {
+            private val delegate = ByteArrayInputStream(bytes)
+            private var consumed = 0
+            override fun read(): Int {
+                if (consumed >= 12 * 1024) throw java.io.IOException("simulated source read failure")
+                val value = delegate.read()
+                if (value >= 0) consumed++
+                return value
+            }
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                if (consumed >= 12 * 1024) throw java.io.IOException("simulated source read failure")
+                val allowed = minOf(length, 12 * 1024 - consumed)
+                val count = delegate.read(buffer, offset, allowed)
+                if (count > 0) consumed += count
+                return count
+            }
+        }
+        try {
+            org.junit.Assert.assertThrows(java.io.IOException::class.java) {
+                ZipExtractionEngine.extract(failingInput, dir)
+            }
+            assertTrue(dir.listFiles().orEmpty().isEmpty())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     @Test fun leavesCallerOwnedInputStreamOpen() {
         val dir = tempDir()
         var closed = false
