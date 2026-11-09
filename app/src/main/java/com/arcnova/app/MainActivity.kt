@@ -1,6 +1,7 @@
 package com.arcnova.app
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -18,6 +19,7 @@ import com.arcnova.app.engine.ArchiveSignatureDetector
 import com.arcnova.app.engine.ArchiveSource
 import com.arcnova.app.engine.ExtractionPolicy
 import com.arcnova.app.engine.ZipExtractionEngine
+import com.arcnova.app.engine.ZipInspectionEngine
 import com.arcnova.app.engine.ZipExtractionProgress
 import com.arcnova.app.engine.ZipExtractionCancelledException
 import java.io.File
@@ -31,6 +33,7 @@ class MainActivity : Activity() {
     private lateinit var statusLabel: TextView
     private lateinit var chooseFolderButton: Button
     private lateinit var extractButton: Button
+    private lateinit var inspectButton: Button
     private lateinit var cancelButton: Button
     private val mainHandler = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
@@ -72,6 +75,12 @@ class MainActivity : Activity() {
             setOnClickListener { startExtraction() }
         }
         root.addView(extractButton)
+        inspectButton = Button(this).apply {
+            text = "Inspect ZIP contents"
+            isEnabled = false
+            setOnClickListener { startInspection() }
+        }
+        root.addView(inspectButton)
         cancelButton = Button(this).apply {
             text = "Cancel"; isEnabled = false
             setOnClickListener { cancelRequested.set(true); statusLabel.text = "Cancelling…" }
@@ -127,6 +136,7 @@ class MainActivity : Activity() {
                 append("\nZIP extraction: "); append(if (supported) "Supported" else "Not supported yet")
             }
             extractButton.isEnabled = supported
+            inspectButton.isEnabled = supported
             chooseFolderButton.isEnabled = supported
             statusLabel.text = "Choose a destination folder to continue."
         } else if (requestCode == requestFolder) {
@@ -134,6 +144,50 @@ class MainActivity : Activity() {
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             destinationTree = uri
             statusLabel.text = "Destination folder selected."
+        }
+    }
+
+    private fun startInspection() {
+        val source = selectedArchive ?: return
+        setBusy(true)
+        cancelRequested.set(false)
+        statusLabel.text = "Inspecting ZIP contents…"
+        worker.execute {
+            try {
+                val input = contentResolver.openInputStream(source.uri)
+                    ?: throw IllegalStateException("Cannot open selected archive")
+                val report = input.use {
+                    ZipInspectionEngine.inspect(it, cancellationRequested = { cancelRequested.get() })
+                }
+                val preview = report.entries.take(40).joinToString("\n") { entry ->
+                    val marker = when {
+                        entry.hasUnsafePath -> "⚠ "
+                        entry.isDuplicateName -> "↻ "
+                        entry.isDirectory -> "📁 "
+                        else -> "📄 "
+                    }
+                    "$marker${entry.name}  •  ${formatBytes(entry.actualSizeBytes)}"
+                }
+                mainHandler.post {
+                    statusLabel.text = "Inspection complete: ${report.fileCount} files, ${report.directoryCount} folders"
+                    val summary = buildString {
+                        append("Files: ${report.fileCount}\nFolders: ${report.directoryCount}\n")
+                        append("Uncompressed: ${formatBytes(report.totalUncompressedBytes)}\n")
+                        append("Unsafe paths: ${report.unsafePathCount}\nDuplicate names: ${report.duplicateNameCount}\n\n")
+                        append(preview.ifBlank { "No entries found." })
+                        if (report.entries.size > 40) append("\n… and ${report.entries.size - 40} more")
+                    }
+                    AlertDialog.Builder(this).setTitle("ZIP contents")
+                        .setMessage(summary).setPositiveButton("Close", null).show()
+                    setBusy(false)
+                }
+            } catch (error: Exception) {
+                mainHandler.post {
+                    statusLabel.text = if (error is com.arcnova.app.engine.ZipInspectionCancelledException) "Inspection cancelled."
+                        else "Inspection failed: ${error.message ?: error.javaClass.simpleName}"
+                    setBusy(false)
+                }
+            }
         }
     }
 
@@ -210,6 +264,7 @@ class MainActivity : Activity() {
 
     private fun setBusy(busy: Boolean) {
         extractButton.isEnabled = !busy && selectedArchive != null && destinationTree != null
+        inspectButton.isEnabled = !busy && selectedArchive != null
         chooseFolderButton.isEnabled = !busy && selectedArchive != null
         cancelButton.isEnabled = busy
     }
