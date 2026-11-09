@@ -4,7 +4,11 @@ package com.arcnova.app.engine
 enum class ArchiveFormat(val label: String) {
     ZIP("ZIP"), SEVEN_ZIP("7-Zip"), RAR("RAR"), TAR("TAR"),
     GZIP("GZIP"), BZIP2("BZIP2"), XZ("XZ"), ZSTANDARD("Zstandard"),
-    FREEARC("FreeArc"), UNKNOWN("Unknown")
+    FREEARC("FreeArc"), WINRK("WinRK"), KGB("KGB"), UHARC("UHARC"),
+    ZPAQ("ZPAQ"), DGCA("DGCA"), STUFFIT("StuffIt"),
+    UNREAL_PAK("Unreal PAK"), UNREAL_IOSTORE("Unreal IoStore"),
+    UNITY_ASSET_BUNDLE("Unity AssetBundle"), SOURCE_VPK("Source VPK"),
+    XP3("XP3"), RPA("Ren'Py Archive"), UNKNOWN("Unknown")
 }
 
 data class ArchiveDetection(
@@ -46,10 +50,26 @@ object ArchiveFormatDetector {
             "xz", "lzma" -> ArchiveFormat.XZ
             "zst", "zstd" -> ArchiveFormat.ZSTANDARD
             "arc" -> ArchiveFormat.FREEARC
+            "rk" -> ArchiveFormat.WINRK
+            "kgb" -> ArchiveFormat.KGB
+            "uha" -> ArchiveFormat.UHARC
+            "zpaq" -> ArchiveFormat.ZPAQ
+            "dgc" -> ArchiveFormat.DGCA
+            "sit", "sitx" -> ArchiveFormat.STUFFIT
+            "pak" -> ArchiveFormat.UNREAL_PAK
+            "utoc", "ucas" -> ArchiveFormat.UNREAL_IOSTORE
+            "unity3d", "bundle" -> ArchiveFormat.UNITY_ASSET_BUNDLE
+            "vpk" -> ArchiveFormat.SOURCE_VPK
+            "xp3" -> ArchiveFormat.XP3
+            "rpa" -> ArchiveFormat.RPA
             else -> ArchiveFormat.UNKNOWN
         }
         return if (format == ArchiveFormat.UNKNOWN) unknown() else ArchiveDetection(format, false)
     }
 
-    private fun unknown() = ArchiveDetection(ArchiveFormat.UNKNOWN, false, confidence = ArchiveDetection.Confidence.UNKNOWN)
+    private fun unknown() = ArchiveDetection(
+        ArchiveFormat.UNKNOWN,
+        false,
+        confidence = ArchiveDetection.Confidence.UNKNOWN
+    )
 }
