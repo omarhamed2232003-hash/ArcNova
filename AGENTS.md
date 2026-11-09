@@ -313,3 +313,34 @@ The owner explicitly confirmed on 2026-11-09 that the complete eight-phase plan 
 - The personal preview was an engineering snapshot, not evidence that the latest experimental ZIP backend was wired into the UI or that the app's extraction behavior had already changed. Always distinguish previewed app behavior from engine code that is only experimental/tested.
 - Keep the temporary preview name/icon clearly provisional; final identity/artwork belongs to mandatory Phase 6 after the product identity is settled.
 - When explaining progress, state both the current user-visible app behavior and the deeper engine capabilities separately. Never imply the preview APK contains a capability merely because a corresponding experimental class or unit test exists.
+
+
+## 16. Owner-mandated technology research and modern-first selection — 2026-11-10
+
+This is a durable product-owner requirement and applies to **every future engineering decision and every phase**, not only Android file picking.
+
+### Mandatory research before choosing an approach
+- Before implementing a new subsystem, API integration, file format, codec, archive engine, installer handler, runtime component, UI framework, storage flow, networking feature, or build/test tool, research the current best options on the public internet. Do not limit research to GitHub: investigate official platform/vendor documentation, upstream project sites and source repositories, release notes/changelogs, issue trackers, security advisories/CVEs, technical papers/specifications, package registries, and credible engineering reports as relevant.
+- Search broadly enough to discover mature projects and reusable code outside GitHub as well as on GitHub. The owner's explicit instruction is to use the wider internet and existing projects rather than rebuilding mature components from scratch.
+- Prefer the newest **stable and maintained** solution that is technically appropriate for ArcNova. "Newest version" alone is not a quality criterion: distinguish stable releases from previews/nightlies, check release dates and maintenance activity, supported Android/API/NDK/ABI targets, ARM64 viability, performance/memory/storage behavior, security history, interoperability, and test maturity.
+- Check official Android/Kotlin/Gradle/NDK documentation for platform APIs and current recommended patterns. Do not introduce deprecated APIs or legacy callbacks into new code when a modern supported API is suitable. Existing legacy code may remain temporarily for compatibility, but document the reason and create a migration path when justified.
+- For third-party code, inspect the actual upstream source and exact release/tag/commit, license text and obligations, transitive dependencies, binary provenance, known vulnerabilities, native build requirements, maintenance health, and redistribution constraints. Never copy code blindly or infer a license from a repository badge alone.
+- Compare at least two credible candidates when meaningful alternatives exist. If only one viable candidate exists, explain why. If no suitable maintained/open implementation exists, document the gap and only then consider implementing the required component ourselves.
+- Prefer reusable, battle-tested upstream engines/libraries and adapters over bespoke implementations, while keeping ArcNova's architecture modular and retaining tests around integration boundaries.
+
+### Required decision record
+For each material technology choice, record in an appropriate existing research/architecture document (do not create a new process phase):
+1. The problem and ArcNova requirements.
+2. Research date and links to authoritative docs, upstream repositories/releases, specifications, security advisories, and relevant issue discussions.
+3. Candidates considered and comparison of stability, maintenance, Android/ARM64 support, performance/resource needs, security, API fit, license/provenance, and integration cost.
+4. The selected option and why it is the best fit; alternatives rejected and reasons.
+5. Exact dependency/API versions and migration/compatibility strategy.
+6. Tests and evidence still required, clearly separating source review, CI validation, emulator validation, and physical-device/end-to-end validation.
+
+Keep the record proportional: a small API choice needs a concise note; a core engine/runtime choice needs a thorough evaluation. This is part of normal engineering and existing documentation, **not an extra audit phase or reason to stall implementation**.
+
+### Research integrity
+- Cite sources and dates in project docs. Prefer official documentation and upstream release notes for factual claims; use issue trackers/community reports as supplementary evidence and verify important claims independently.
+- Never claim to have surveyed "the entire internet" or every project. Search widely, disclose the scope and remaining uncertainty, and revisit decisions when upstream status changes or a better candidate emerges.
+- Re-check current versions and maintenance when a dependency is upgraded or a phase begins; do not rely on old research snapshots.
+- Do not choose an obsolete API merely because it is familiar or easier to wire into the current scaffold. Any exception requires a concrete compatibility or technical reason documented with the decision.
