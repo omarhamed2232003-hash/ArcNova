@@ -66,6 +66,10 @@ object ZipInspectionEngine {
                     )
                 }
             }
+        } catch (cancelled: ArchiveSpoolCancelledException) {
+            // Cancellation can happen while copying the source stream into the
+            // seekable cache file, before a CentralDirectoryZipArchive exists.
+            throw ZipInspectionCancelledException()
         } catch (cancelled: CentralDirectoryZipCancelledException) {
             throw ZipInspectionCancelledException()
         } catch (limit: CentralDirectoryZipException) {
