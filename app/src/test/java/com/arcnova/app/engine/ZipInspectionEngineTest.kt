@@ -94,7 +94,54 @@ class ZipInspectionEngineTest {
                 maxArchiveBytes = 4096
             )
             fail("Expected unsafe path rejection")
-        } catch (_: ZipInspectionLimitException) {
+        } catch (error: ZipInspectionUnsafePathException) {
+            assertEquals("../outside.txt", error.entryName)
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
+
+    @Test fun centralDirectoryInspectionReportsCrcMismatchAsIntegrityFailure() {
+        val cache = createTempDir(prefix = "arcnova-inspect-crc-")
+        try {
+            val valid = archive("payload.txt" to "original".toByteArray())
+            val corrupted = valid.clone()
+            val payloadOffset = valid.indexOf("original".toByteArray())
+            assertTrue(payloadOffset >= 0)
+            corrupted[payloadOffset] = 'X'.code.toByte()
+            try {
+                ZipInspectionEngine.inspectCentralDirectory(
+                    input = ByteArrayInputStream(corrupted),
+                    cacheDirectory = cache,
+                    maxArchiveBytes = 4096
+                )
+                fail("Expected CRC integrity failure")
+            } catch (error: ZipInspectionIntegrityException) {
+                assertEquals("payload.txt", error.entryName)
+                assertNotEquals(error.expectedCrc32, error.actualCrc32)
+            }
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test fun centralDirectoryInspectionReportsPathConflictsAsFormatFailure() {
+        val cache = createTempDir(prefix = "arcnova-inspect-path-conflict-")
+        try {
+            ZipInspectionEngine.inspectCentralDirectory(
+                input = ByteArrayInputStream(archive(
+                    "folder/child.txt" to byteArrayOf(1),
+                    "folder" to byteArrayOf(2)
+                )),
+                cacheDirectory = cache,
+                maxArchiveBytes = 4096
+            )
+            fail("Expected invalid archive path conflict")
+        } catch (error: ZipInspectionFormatException) {
+            assertTrue(error.message.orEmpty().contains("conflicts"))
             assertTrue(cache.listFiles().orEmpty().isEmpty())
         } finally {
             cache.deleteRecursively()
