@@ -108,7 +108,11 @@ class ZipInspectionEngineTest {
         try {
             val valid = archive("payload.txt" to "original".toByteArray())
             val corrupted = valid.clone()
-            val payloadOffset = valid.indexOf("original".toByteArray())
+            val needle = "original".toByteArray()
+            val payloadOffset = valid.indices.firstOrNull { start ->
+                start + needle.size <= valid.size &&
+                    needle.indices.all { index -> valid[start + index] == needle[index] }
+            } ?: -1
             assertTrue(payloadOffset >= 0)
             corrupted[payloadOffset] = 'X'.code.toByte()
             try {
