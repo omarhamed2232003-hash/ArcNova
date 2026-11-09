@@ -24,7 +24,7 @@ object AndroidDeviceCapabilityProbe {
         val features = appContext.packageManager.systemAvailableFeatures
             .filterNotNull()
         val vulkanLevel = features.firstOrNull {
-            it.name == FeatureInfo.GL_ES_FEATURES
+            it.name == "android.hardware.vulkan.level"
         }?.version ?: 0
         val vulkanVersion = features.firstOrNull {
             it.name == "android.hardware.vulkan.version"
