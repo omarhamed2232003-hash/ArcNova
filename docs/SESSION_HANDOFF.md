@@ -228,3 +228,10 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 ### Pending validation
 - Next CI run must resolve plugin and Kotlin DSL compatibility and execute `testDebugUnitTest`. If AGP 9.5.1 exposes migration issues, inspect exact compiler/plugin errors and follow official AGP 9 migration guidance rather than randomly downgrading dependencies.
 - No APK build requested or triggered intentionally; no merge to main.
+
+
+### AGP 9 built-in Kotlin follow-up
+- Runs #229–#234 advanced past dependency metadata and failed while applying `org.jetbrains.kotlin.android`: AGP 9 already provides built-in Kotlin, so applying the external Kotlin Android plugin conflicts.
+- Official migration guidance: remove `org.jetbrains.kotlin.android` from both root and module plugin declarations; migrate `android.kotlinOptions` to the `kotlin.compilerOptions` DSL. Sources: https://developer.android.com/build/migrate-to-built-in-kotlin and https://kotlinlang.org/docs/gradle-compiler-options.html
+- Removed the external Kotlin Android plugin declaration/application and migrated JVM target 17 configuration to `kotlin.compilerOptions`.
+- Next CI run must verify the built-in Kotlin DSL and compile the app/tests. Do not claim success until matched run passes.
