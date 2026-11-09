@@ -644,6 +644,49 @@ class ZipExtractionEngineTest {
     }
 
 
+    @Test fun centralDirectorySpoolInputLimitUsesExtractionExceptionAndRemovesNewDestination() {
+        val parent = tempDir()
+        val destination = File(parent, "new-destination")
+        val cache = tempDir()
+        try {
+            org.junit.Assert.assertThrows(ZipExtractionLimitException::class.java) {
+                ZipExtractionEngine.extractCentralDirectory(
+                    ByteArrayInputStream(archive("payload.bin" to ByteArray(512))),
+                    destination,
+                    cache,
+                    maxArchiveBytes = 32
+                )
+            }
+            assertFalse(destination.exists())
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            parent.deleteRecursively()
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test fun centralDirectorySpoolCancellationUsesExtractionExceptionAndRemovesNewDestination() {
+        val parent = tempDir()
+        val destination = File(parent, "new-destination")
+        val cache = tempDir()
+        try {
+            org.junit.Assert.assertThrows(ZipExtractionCancelledException::class.java) {
+                ZipExtractionEngine.extractCentralDirectory(
+                    ByteArrayInputStream(archive("payload.bin" to ByteArray(512))),
+                    destination,
+                    cache,
+                    maxArchiveBytes = 4096,
+                    cancellationRequested = { true }
+                )
+            }
+            assertFalse(destination.exists())
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            parent.deleteRecursively()
+            cache.deleteRecursively()
+        }
+    }
+
     @Test fun centralDirectoryActualTotalOutputLimitRollsBackPartialAndEarlierFiles() {
         val destination = tempDir()
         val cache = tempDir()
