@@ -22,6 +22,7 @@ class TransactionalTreeCopyTest {
         var failCreateName: String? = null
         var failOpenName: String? = null
         var failWriteName: String? = null
+        var failCloseName: String? = null
         var failDeleteName: String? = null
         private var nextId = 0
 
@@ -64,6 +65,9 @@ class TransactionalTreeCopyTest {
                 override fun close() {
                     super.close()
                     node.bytes = toByteArray()
+                    if (node.name == failCloseName) {
+                        throw java.io.IOException("simulated provider close failure")
+                    }
                 }
             }
         }
@@ -202,6 +206,26 @@ class TransactionalTreeCopyTest {
                 TransactionalTreeCopy.copy(source, "root", store)
             }
 
+            assertEquals(listOf("keep.txt"), store.paths())
+            assertEquals(
+                "important",
+                store.nodes.getValue(existingId).bytes.toString(Charsets.UTF_8)
+            )
+        } finally {
+            source.deleteRecursively()
+        }
+    }
+
+    @Test fun outputCloseFailureRollsBackCreatedDocumentAndPreservesExistingItems() {
+        val source = tempDir()
+        val store = FakeTreeStore()
+        val existingId = store.addExisting("keep.txt", "important".toByteArray())
+        store.failCloseName = "close-fails.txt"
+        try {
+            File(source, "close-fails.txt").writeText("payload")
+            org.junit.Assert.assertThrows(java.io.IOException::class.java) {
+                TransactionalTreeCopy.copy(source, "root", store)
+            }
             assertEquals(listOf("keep.txt"), store.paths())
             assertEquals(
                 "important",
