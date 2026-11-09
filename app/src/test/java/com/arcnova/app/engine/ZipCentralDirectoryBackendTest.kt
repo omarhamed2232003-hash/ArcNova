@@ -9,6 +9,7 @@ import java.util.zip.ZipOutputStream
 import org.apache.commons.compress.archivers.zip.ZipFile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -141,6 +142,32 @@ class ZipCentralDirectoryBackendTest {
                 val entries = Collections.list(zip.entries)
                 assertEquals(2, entries.size)
                 assertTrue(entries.all { it.name == "first.txt" })
+            }
+        } finally {
+            archive.delete()
+        }
+    }
+
+    @Test fun entryStreamDoesNotValidateCentralDirectoryCrcForAdapter() {
+        val archive = File.createTempFile("arcnova-crc-mismatch-", ".zip")
+        try {
+            val payload = "crc-must-be-checked-by-adapter".toByteArray()
+            val bytes = createStoredArchive("crc.txt", payload)
+            val centralStart = firstCentralDirectoryOffset(bytes)
+            val declaredCrc = java.util.zip.CRC32().apply { update(payload) }.value
+            val mismatchedCrc = declaredCrc xor 0x00000001L
+            writeLittleEndianInt(bytes, centralStart + 16, mismatchedCrc.toInt())
+            archive.writeBytes(bytes)
+
+            ZipFile.builder().setFile(archive).get().use { zip ->
+                val entry = zip.getEntry("crc.txt")
+                assertNotNull(entry)
+                assertEquals(mismatchedCrc, entry.crc)
+                val extracted = zip.getInputStream(entry).use { it.readBytes() }
+                assertTrue(payload.contentEquals(extracted))
+                val actualCrc = java.util.zip.CRC32().apply { update(extracted) }.value
+                assertNotEquals("Adapter must reject payloads whose computed CRC differs from metadata",
+                    entry.crc, actualCrc)
             }
         } finally {
             archive.delete()
