@@ -149,10 +149,10 @@ class MainActivity : Activity() {
                         selectedArchive = source
                         fileLabel.text = buildString {
                             append("Selected: "); append(source.displayName ?: "Unknown")
-                            append("\\nSize: "); append(source.declaredSizeBytes?.let(::formatBytes) ?: "Unknown")
-                            append("\\nDetected extension: "); append(extension.format.label)
-                            append("\\nHeader: "); append(signature?.label ?: "Unavailable")
-                            append("\\nZIP extraction: "); append(if (supported) "Supported" else "Not supported yet")
+                            append("\nSize: "); append(source.declaredSizeBytes?.let(::formatBytes) ?: "Unknown")
+                            append("\nDetected extension: "); append(extension.format.label)
+                            append("\nHeader: "); append(signature?.label ?: "Unavailable")
+                            append("\nZIP extraction: "); append(if (supported) "Supported" else "Not supported yet")
                         }
                         extractButton.isEnabled = supported
                         inspectButton.isEnabled = supported
