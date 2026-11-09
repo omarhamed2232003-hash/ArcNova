@@ -609,4 +609,31 @@ class ZipExtractionEngineTest {
         }
     }
 
+
+    @Test fun centralDirectoryProgressCallbackFailureRollsBackCreatedOutput() {
+        val destination = tempDir()
+        val cache = tempDir()
+        val existing = File(destination, "keep.txt").apply { writeText("keep") }
+        try {
+            org.junit.Assert.assertThrows(IllegalStateException::class.java) {
+                ZipExtractionEngine.extractCentralDirectory(
+                    ByteArrayInputStream(archive(
+                        "created/first.txt" to "first".toByteArray(),
+                        "created/second.txt" to "second".toByteArray()
+                    )),
+                    destination,
+                    cache,
+                    maxArchiveBytes = 1024 * 1024L,
+                    onProgress = { throw IllegalStateException("simulated consumer failure") }
+                )
+            }
+            assertFalse(File(destination, "created").exists())
+            assertEquals("keep", existing.readText())
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+            cache.deleteRecursively()
+        }
+    }
+
 }
