@@ -78,6 +78,22 @@ class ArchiveRiskAssessmentTest {
         assertNotNull(finding(result, "double-extension"))
     }
 
+    @Test fun reportsSeverityCountsAndHighestSeverity() {
+        val result = ArchiveRiskAssessment.assess(
+            report(
+                entry("../escape", unsafe = true),
+                entry("run.ps1"),
+                entry("setup.exe"),
+                entry(".hidden")
+            )
+        )
+        assertEquals(1, result.criticalCount)
+        assertEquals(1, result.highCount)
+        assertEquals(1, result.mediumCount)
+        assertEquals(1, result.lowCount)
+        assertEquals(RiskSeverity.CRITICAL, result.highestSeverity)
+    }
+
     @Test fun cleanArchiveHasNoFindings() {
         val result = ArchiveRiskAssessment.assess(report(entry("readme.txt")))
         assertTrue(result.findings.isEmpty())

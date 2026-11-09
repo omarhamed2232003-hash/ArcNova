@@ -94,4 +94,9 @@ data class ArchiveRiskFinding(
 data class ArchiveRiskReport(val findings: List<ArchiveRiskFinding>) {
     val hasCriticalFindings: Boolean get() = findings.any { it.severity == RiskSeverity.CRITICAL }
     val totalAffectedEntries: Int get() = findings.sumOf { it.affectedEntries }
+    val criticalCount: Int get() = findings.count { it.severity == RiskSeverity.CRITICAL }
+    val highCount: Int get() = findings.count { it.severity == RiskSeverity.HIGH }
+    val mediumCount: Int get() = findings.count { it.severity == RiskSeverity.MEDIUM }
+    val lowCount: Int get() = findings.count { it.severity == RiskSeverity.LOW }
+    val highestSeverity: RiskSeverity? get() = findings.maxByOrNull { it.severity.ordinal }?.severity
 }
