@@ -12,6 +12,7 @@ import android.widget.TextView
 import com.arcnova.app.engine.ArchiveFormatDetector
 import com.arcnova.app.engine.ArchiveSignatureDetector
 import com.arcnova.app.engine.ArchiveSource
+import com.arcnova.app.engine.WindowsExecutableDetector
 
 class MainActivity : Activity() {
     private lateinit var fileLabel: TextView
@@ -60,7 +61,9 @@ class MainActivity : Activity() {
         val source = selectedArchive ?: run { fileLabel.text = "Selected file could not be inspected."; return }
 
         val extensionHint = ArchiveFormatDetector.detect(source.displayName)
-        val signature = readSignature(uri)
+        val prefix = readPrefix(uri)
+        val signature = prefix?.let(ArchiveSignatureDetector::detect)
+        val executable = prefix?.let(WindowsExecutableDetector::detect)
         val signatureLabel = if (signature == null) "Could not read file header" else signature.label
         val verdict = when {
             signature == null -> "Header inspection unavailable"
@@ -81,10 +84,10 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun readSignature(uri: Uri): com.arcnova.app.engine.ArchiveFormat? {
+    private fun readPrefix(uri: Uri): ByteArray? {
         return runCatching {
             contentResolver.openInputStream(uri)?.use { input ->
-                val prefix = ByteArray(512)
+                val prefix = ByteArray(4096)
                 var count = 0
                 while (count < prefix.size) {
                     val read = input.read(prefix, count, prefix.size - count)
@@ -92,7 +95,7 @@ class MainActivity : Activity() {
                     if (read == 0) continue
                     count += read
                 }
-                ArchiveSignatureDetector.detect(prefix.copyOf(count))
+                prefix.copyOf(count)
             }
         }.getOrNull()
     }
