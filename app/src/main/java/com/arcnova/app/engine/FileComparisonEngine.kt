@@ -30,4 +30,11 @@ data class FileComparisonReport(
     val right: FileAnalysisReport,
     val sameSize: Boolean,
     val sameContent: Boolean
-)
+) {
+    val sameDetectedFormat: Boolean?
+        get() {
+            val leftFormat = left.signature?.id ?: return null
+            val rightFormat = right.signature?.id ?: return null
+            return leftFormat == rightFormat
+        }
+}

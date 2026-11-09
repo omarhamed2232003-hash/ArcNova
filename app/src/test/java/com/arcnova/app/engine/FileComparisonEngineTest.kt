@@ -32,6 +32,15 @@ class FileComparisonEngineTest {
         assertFalse(result.sameContent)
     }
 
+    @Test fun reportsMatchingDetectedFormats() {
+        val png = byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)
+        val result = FileComparisonEngine.compare(
+            "a.png", ByteArrayInputStream(png),
+            "b.png", ByteArrayInputStream(png)
+        )
+        assertEquals(true, result.sameDetectedFormat)
+    }
+
     @Test fun leavesBothStreamsOpen() {
         var leftClosed = false
         var rightClosed = false
