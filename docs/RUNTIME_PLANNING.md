@@ -20,7 +20,7 @@ The initial worker heuristic is intentionally conservative and applies to ArcNov
 
 ## Next integration gates
 
-1. Add a real Android capability probe (ABI, Vulkan extensions/version, memory class, thermal status, supported ABIs).
+1. ~~Add a real Android capability probe~~ — initial Android framework probe is now implemented; native Vulkan extension/device validation remains a separate required gate.
 2. Add runtime component manifests with exact source commit, license, ABI, checksum and install size.
 3. Provision Wine/Proton and translators as separate versioned components; do not bundle until dependency licenses and distribution rights are audited.
 4. Implement process lifecycle, prefix creation, storage mapping, logs and cleanup.
@@ -93,3 +93,14 @@ For every benchmark, record:
 - median and 1% low frame rate, frame-time variance, RAM, CPU/GPU load, temperature, battery drain and crash/relaunch behavior.
 
 Do not select a default runtime solely because it wins one FPS test. Prefer stable frame pacing and repeatable launch/gameplay, then optimize per game. Thermal throttling and memory pressure can reverse an initially faster configuration.
+
+
+## Android capability probe — initial implementation
+
+`AndroidDeviceCapabilityProbe` now reads supported ABIs, available/total RAM, low-memory state, CPU count, Android SDK/device model, Android's declared Vulkan feature version, and thermal status where the OS exposes it. It requests no storage or network permissions.
+
+Important limitations:
+- PackageManager's Vulkan feature declaration is only a coarse platform hint. It does not enumerate Vulkan instance/device extensions or prove that Turnip, DXVK or VKD3D works. A native Vulkan probe is still required before selecting those backends for real execution.
+- Thermal status is mapped to a conservative normalized budget for ArcNova background work, not a measured GPU/CPU performance ceiling.
+- Available RAM is a point-in-time value and can change immediately under Android memory pressure.
+- This probe reports capabilities; it does not download, install, or launch runtime components.

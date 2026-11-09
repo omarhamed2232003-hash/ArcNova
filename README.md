@@ -48,7 +48,7 @@ There is no universally fastest Wine/Proton + Box64/FEX + graphics-driver combin
 
 - Android project scaffold and CI build.
 - Bounded streaming transfer primitive and unit tests.
-- Platform-neutral runtime candidate planner with ABI/Vulkan/DirectX/32-bit/RAM/thermal checks and per-game profile validation.
+- Platform-neutral runtime candidate planner with ABI/Vulkan/DirectX/32-bit/RAM/thermal checks and per-game profile validation.\n- Initial Android capability probe for supported ABIs, memory, CPU count, declared Vulkan feature version and thermal status; native Vulkan extension validation remains pending.
 - Research records for SREP/LOLZ and external runtime/archive candidates.
 
 The runtime planner is not an installed runtime. No Steam game or FitGirl repack is currently installable/playable through ArcNova.
