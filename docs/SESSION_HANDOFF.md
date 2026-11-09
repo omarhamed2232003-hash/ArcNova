@@ -136,3 +136,12 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Improved error typing: added `CentralDirectoryZipLimitException` for policy/actual-output limit violations; the extraction engine maps backend cancellation and limit exceptions to the public `ZipExtractionCancelledException` and `ZipExtractionLimitException` types. CRC and malformed archive exceptions remain distinct.
 - Updated the actual-output rollback test to assert the public `ZipExtractionLimitException` contract, not the backend-internal exception.
 - Commits: `d0e334f86572a4f8c329d3c1e3df4557dcd5391e`, `306fb1c42bdc28d2d52e955895c15c527c8e160f`, `6a698b9b4f02fcc2e7abcf98467903d9ee5599ef`. Latest tests pending CI. No APK built; no device validation.
+
+
+## ZIP64 app-path regression — 2026-11-09
+
+- Run #184 failed on an intermediate PR merge commit because the existing actual-output rollback test still asserted the backend-internal exception after the public exception contract was intentionally changed. The failure was isolated to that stale assertion; no compile failure.
+- Updated the test to assert `ZipExtractionLimitException` and confirmed the subsequent PR merge run #189 passed. Run #189 checked out merge SHA `8c29cf53d900b92352d2fc6336ba215771a549a7`; the `test` job and `Run unit tests` step completed successfully; `preview-apk` was skipped.
+- Added an end-to-end ZIP64 extraction regression using Apache Commons Compress ZIP64 output with `Zip64Mode.Always`. It verifies extraction result counts, exact bytes, payload contents, and spool cleanup through the app-facing central-directory engine.
+- ZIP64 end-to-end test commit: `3ede5bbae7e5aa6c3554cb2985ccda0fd8c56262`. Awaiting its own CI run; not yet CI-tested or device-tested.
+- No APK built. No change to `main`.
