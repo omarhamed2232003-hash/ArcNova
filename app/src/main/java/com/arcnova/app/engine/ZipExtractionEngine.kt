@@ -175,6 +175,7 @@ object ZipExtractionEngine {
         )
 
         var archive: CentralDirectoryZipArchive? = null
+        var operationFailure: Exception? = null
         try {
             checkCancelled(cancellationRequested, totalBytes)
             archive = CentralDirectoryZipBackend.open(
@@ -231,6 +232,7 @@ object ZipExtractionEngine {
                 entriesProcessed, filesExtracted, directoriesCreated, totalBytes, root
             )
         } catch (error: Exception) {
+            operationFailure = error
             rollback(createdFiles, createdDirectories, if (destinationExisted) null else root, error)
             throw error
         } finally {
@@ -238,8 +240,8 @@ object ZipExtractionEngine {
                 try {
                     opened.close()
                 } catch (closeError: Exception) {
-                    // A primary extraction error is already propagated. Preserve cleanup diagnostics
-                    // on the exception when possible; successful close is handled before return above.
+                    val primary = operationFailure
+                    if (primary != null) primary.addSuppressed(closeError) else throw closeError
                 }
             }
         }
