@@ -238,6 +238,11 @@ object ZipExtractionEngine {
                     error.message ?: "Archive exceeds configured input limit",
                     error.copiedBytes
                 )
+                is CentralDirectoryZipCancelledException -> ZipExtractionCancelledException(totalBytes)
+                is CentralDirectoryZipLimitException -> ZipExtractionLimitException(
+                    error.message ?: "ZIP extraction limit exceeded",
+                    totalBytes
+                )
                 else -> error
             }
             operationFailure = reportedError
