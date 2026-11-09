@@ -293,3 +293,23 @@ The owner explicitly asked that a professional image/design for the application 
 - Keep all assets original; do not imitate another product's logo, brand, or proprietary artwork.
 - Use the same identity consistently across the Android app, GitHub README/screenshots, and future promotional materials.
 - Final image generation and asset integration should happen after the product name/brand direction is settled, while the requirement remains on the active roadmap.
+
+## 15. Mandatory eight-phase delivery plan — owner-confirmed and must not be forgotten
+
+The owner explicitly confirmed on 2026-11-09 that the complete eight-phase plan in `docs/ROADMAP.md` is binding project direction. Every new agent/session must preserve it, consult it before selecting work, and update the handoff with the current phase and exit-gate status. Do not silently drop, merge, reorder, or skip phases.
+
+1. **Phase 1 — Core file/archive foundations:** file intelligence, safe ZIP inspection/extraction, transactional SAF operations, bounded resources, cancellation, rollback, and adversarial regression tests.
+2. **Phase 2 — General archive engines:** real TAR/gzip, 7z, RAR and other common formats using verified libraries/decoders, licenses, fixtures, and integrity tests.
+3. **Phase 3 — Specialist compression and game containers:** FreeArc/multipart and specialist codecs where rights permit, plus Unreal, Unity, Source, XP3/RPA and other game package formats.
+4. **Phase 4 — Installer intelligence:** installer detection, manifest/payload inspection, safe extraction, and isolated supported installer workflows.
+5. **Phase 5 — Compatibility runtime:** managed Windows compatibility environment, ARM64 translation, graphics/audio/input adapters, profiles, and per-title validation.
+6. **Phase 6 — Full professional UI and brand system (MANDATORY):** replace the current engineering harness; deliver the complete premium modern Windows-inspired ArcNova experience, responsive tablet/phone workspace, file manager, archive browser, job/progress center, navigation/panels, polished dialogs/empty/error/loading states, accessibility, refined motion, pointer/keyboard/context-menu/drag-drop support where useful, coherent light/dark design system, final logo/wordmark, launcher icon, and consistent original artwork. This phase is not optional, must not be forgotten or reduced to a cosmetic refresh, and must be completed before device qualification/release phases.
+7. **Phase 7 — Physical-device qualification:** validate real workflows and performance on target Android hardware/providers, including OnePlus Pad 2, large files, SAF, cancellation, storage, memory, thermal/battery, and runtime compatibility.
+8. **Phase 8 — Release readiness:** security/privacy/license review, signing, versioning, diagnostics, release notes, reproducible checks, and beta/release preparation.
+
+### Phase gates and preview APK rule
+- Advance only when the current phase's documented exit criteria are met; record incomplete items honestly. Research, detection hints, scaffolding, and CI success do not count as implemented engine support.
+- The owner authorized exactly one early personal preview APK to inspect the current state. That exception has been used. **Do not build or request another APK until all eight phases are complete and the owner explicitly authorizes final release/device packaging.** Continue ordinary unit tests/CI without APK assembly.
+- The personal preview was an engineering snapshot, not evidence that the latest experimental ZIP backend was wired into the UI or that the app's extraction behavior had already changed. Always distinguish previewed app behavior from engine code that is only experimental/tested.
+- Keep the temporary preview name/icon clearly provisional; final identity/artwork belongs to mandatory Phase 6 after the product identity is settled.
+- When explaining progress, state both the current user-visible app behavior and the deeper engine capabilities separately. Never imply the preview APK contains a capability merely because a corresponding experimental class or unit test exists.
