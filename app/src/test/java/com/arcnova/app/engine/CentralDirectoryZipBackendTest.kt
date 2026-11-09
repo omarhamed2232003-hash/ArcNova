@@ -67,6 +67,26 @@ class CentralDirectoryZipBackendTest {
         }
     }
 
+    @Test fun closeIsIdempotentCleansSpoolAndPreventsFurtherCopies() {
+        val directory = tempDir()
+        val opened = CentralDirectoryZipBackend.open(
+            ByteArrayInputStream(archive("close.txt", "payload".toByteArray())),
+            directory,
+            4096
+        )
+        val spool = directory.listFiles().orEmpty().single()
+        assertTrue(spool.exists())
+        opened.close()
+        assertFalse(spool.exists())
+        // A second close must be harmless and must not recreate or leak resources.
+        opened.close()
+        assertTrue(directory.listFiles().orEmpty().isEmpty())
+        org.junit.Assert.assertThrows(IllegalStateException::class.java) {
+            opened.copyEntry(opened.entries.single(), ByteArrayOutputStream())
+        }
+        directory.deleteRecursively()
+    }
+
     @Test fun rejectsUnsafePathBeforeReturningArchive() {
         val directory = tempDir()
         try {
