@@ -47,7 +47,7 @@ object ArchiveRiskAssessment {
             "The archive contains nested archive files.")
         add("hidden-entry", RiskSeverity.LOW,
             report.entries.count {
-                it.name.replace('\\\\', '/').substringAfterLast('/').startsWith(".")
+                it.name.replace(92.toChar(), '/').substringAfterLast('/').startsWith(".")
             },
             "The archive contains hidden or dot-prefixed entries.")
         add("double-extension", RiskSeverity.MEDIUM,
@@ -60,7 +60,7 @@ object ArchiveRiskAssessment {
     }
 
     private fun extension(path: String): String {
-        val name = path.substringAfterLast('/').substringAfterLast('\\\\')
+        val name = path.replace(92.toChar(), '/').substringAfterLast('/')
         val dot = name.lastIndexOf('.')
         return if (dot <= 0 || dot == name.lastIndex) "" else name.substring(dot + 1).lowercase()
     }
