@@ -509,6 +509,40 @@ class ZipExtractionEngineTest {
         throw AssertionError("Central Directory entry not found: $entryName")
     }
 
+    private fun understateCentralDirectorySize(bytes: ByteArray, entryName: String): ByteArray {
+        val corrupted = bytes.copyOf()
+        fun u16(offset: Int): Int =
+            (corrupted[offset].toInt() and 0xff) or
+                ((corrupted[offset + 1].toInt() and 0xff) shl 8)
+        fun u32(offset: Int): Long =
+            (corrupted[offset].toLong() and 0xff) or
+                ((corrupted[offset + 1].toLong() and 0xff) shl 8) or
+                ((corrupted[offset + 2].toLong() and 0xff) shl 16) or
+                ((corrupted[offset + 3].toLong() and 0xff) shl 24)
+
+        var offset = 0
+        while (offset <= corrupted.size - 46) {
+            if (u32(offset) == 0x02014b50L) {
+                val nameLength = u16(offset + 28)
+                val extraLength = u16(offset + 30)
+                val commentLength = u16(offset + 32)
+                val name = String(corrupted, offset + 46, nameLength, Charsets.UTF_8)
+                if (name == entryName) {
+                    // Central Directory uncompressed-size field: deliberately claim one byte.
+                    corrupted[offset + 24] = 1
+                    corrupted[offset + 25] = 0
+                    corrupted[offset + 26] = 0
+                    corrupted[offset + 27] = 0
+                    return corrupted
+                }
+                offset += 46 + nameLength + extraLength + commentLength
+            } else {
+                offset++
+            }
+        }
+        throw AssertionError("Central Directory entry not found: $entryName")
+    }
+
     @Test fun centralDirectoryExtractionUsesTransactionalWriterAndCleansSpool() {
         val destination = tempDir()
         val cache = tempDir()
@@ -609,6 +643,38 @@ class ZipExtractionEngineTest {
         }
     }
 
+
+    @Test fun centralDirectoryActualTotalOutputLimitRollsBackPartialAndEarlierFiles() {
+        val destination = tempDir()
+        val cache = tempDir()
+        val existing = File(destination, "keep.txt").apply { writeText("preserve") }
+        val payload = ByteArray(128 * 1024).also { java.util.Random(91L).nextBytes(it) }
+        val valid = archive(
+            "first/complete.txt" to "remove".toByteArray(),
+            "second/oversized.bin" to payload
+        )
+        val understated = understateCentralDirectorySize(valid, "second/oversized.bin")
+        try {
+            org.junit.Assert.assertThrows(CentralDirectoryZipException::class.java) {
+                ZipExtractionEngine.extractCentralDirectory(
+                    ByteArrayInputStream(understated),
+                    destination,
+                    cache,
+                    maxArchiveBytes = 1024 * 1024L,
+                    policy = ExtractionPolicy(maxTotalOutputBytes = 70 * 1024L)
+                )
+            }
+            assertFalse(File(destination, "first/complete.txt").exists())
+            assertFalse(File(destination, "second/oversized.bin").exists())
+            assertFalse(File(destination, "first").exists())
+            assertFalse(File(destination, "second").exists())
+            assertEquals("preserve", existing.readText())
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+            cache.deleteRecursively()
+        }
+    }
 
     @Test fun centralDirectoryProgressCallbackFailureRollsBackCreatedOutput() {
         val destination = tempDir()
