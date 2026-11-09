@@ -20,8 +20,11 @@ object WindowsExecutableDetector {
             ((prefix[0x3e].toInt() and 0xff) shl 16) or
             ((prefix[0x3f].toInt() and 0xff) shl 24)
 
+        // A zero e_lfanew commonly indicates a DOS-only MZ image, not a PE file.
+        if (peOffset == 0) return Result.MZ_HEADER_ONLY
         if (peOffset < 0x40) return Result.INVALID_PE_OFFSET
         if (peOffset > prefix.size - 4) return Result.MZ_HEADER_ONLY
+
         val isPe = prefix[peOffset] == 0x50.toByte() &&
             prefix[peOffset + 1] == 0x45.toByte() &&
             prefix[peOffset + 2] == 0.toByte() &&
