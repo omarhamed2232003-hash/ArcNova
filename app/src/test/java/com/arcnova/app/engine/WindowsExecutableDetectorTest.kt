@@ -8,12 +8,17 @@ import org.junit.Test
 class WindowsExecutableDetectorTest {
     private fun pe(machine: Int, magic: Int, subsystem: Int = 3, characteristics: Int = 0x0002): ByteArray {
         val bytes = ByteArray(512)
-        bytes[0] = 0x4d; bytes[1] = 0x5a
-        bytes[0x3c] = 0x80
-        bytes[0x80] = 0x50; bytes[0x81] = 0x45
-        fun put16(offset: Int, value: Int) {
+        fun put8(offset: Int, value: Int) {
             bytes[offset] = value.toByte()
-            bytes[offset + 1] = (value ushr 8).toByte()
+        }
+        put8(0, 0x4d)
+        put8(1, 0x5a)
+        put8(0x3c, 0x80)
+        put8(0x80, 0x50)
+        put8(0x81, 0x45)
+        fun put16(offset: Int, value: Int) {
+            put8(offset, value)
+            put8(offset + 1, value ushr 8)
         }
         put16(0x84, machine)
         put16(0x94, 0x00f0)
@@ -50,7 +55,8 @@ class WindowsExecutableDetectorTest {
 
     @Test fun distinguishesDosHeaderAndNonExecutable() {
         val mz = ByteArray(64)
-        mz[0] = 0x4d; mz[1] = 0x5a
+        mz[0] = 0x4d.toByte()
+        mz[1] = 0x5a.toByte()
         assertEquals(WindowsExecutableDetector.Result.MZ_HEADER_ONLY, WindowsExecutableDetector.detect(mz))
         assertEquals(WindowsExecutableDetector.Result.NOT_EXECUTABLE,
             WindowsExecutableDetector.detect(byteArrayOf(1, 2)))
@@ -58,7 +64,9 @@ class WindowsExecutableDetectorTest {
 
     @Test fun rejectsInvalidPeOffset() {
         val bytes = ByteArray(64)
-        bytes[0] = 0x4d; bytes[1] = 0x5a; bytes[0x3c] = 0x20
+        bytes[0] = 0x4d.toByte()
+        bytes[1] = 0x5a.toByte()
+        bytes[0x3c] = 0x20.toByte()
         assertEquals(WindowsExecutableDetector.Result.INVALID_PE_OFFSET,
             WindowsExecutableDetector.detect(bytes))
     }
