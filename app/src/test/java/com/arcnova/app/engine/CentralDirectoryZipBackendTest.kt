@@ -221,4 +221,30 @@ class CentralDirectoryZipBackendTest {
         }
     }
 
+
+    @Test fun rejectsChildPathBeforeItsFileParentRegardlessOfCentralDirectoryOrder() {
+        val directory = tempDir()
+        val output = ByteArrayOutputStream()
+        ZipOutputStream(output).use { zip ->
+            zip.putNextEntry(ZipEntry("node/child.txt"))
+            zip.write(byteArrayOf(2))
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry("node"))
+            zip.write(byteArrayOf(1))
+            zip.closeEntry()
+        }
+        try {
+            org.junit.Assert.assertThrows(CentralDirectoryZipException::class.java) {
+                CentralDirectoryZipBackend.open(
+                    ByteArrayInputStream(output.toByteArray()),
+                    directory,
+                    4096
+                )
+            }
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
 }
