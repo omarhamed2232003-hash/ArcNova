@@ -23,6 +23,36 @@ class ZipExtractionEngineTest {
         return output.toByteArray()
     }
 
+
+    private fun corruptLocalHeaderCrc(bytes: ByteArray, entryName: String): ByteArray {
+        val corrupted = bytes.copyOf()
+        fun unsignedShort(offset: Int): Int =
+            (corrupted[offset].toInt() and 0xff) or
+                ((corrupted[offset + 1].toInt() and 0xff) shl 8)
+
+        var offset = 0
+        while (offset <= corrupted.size - 30) {
+            val signature = (corrupted[offset].toInt() and 0xff) or
+                ((corrupted[offset + 1].toInt() and 0xff) shl 8) or
+                ((corrupted[offset + 2].toInt() and 0xff) shl 16) or
+                ((corrupted[offset + 3].toInt() and 0xff) shl 24)
+            if (signature == 0x04034b50) {
+                val nameLength = unsignedShort(offset + 26)
+                val extraLength = unsignedShort(offset + 28)
+                val nameStart = offset + 30
+                val name = String(corrupted, nameStart, nameLength, Charsets.UTF_8)
+                if (name == entryName) {
+                    corrupted[offset + 14] = (corrupted[offset + 14].toInt() xor 0x01).toByte()
+                    return corrupted
+                }
+                offset = nameStart + nameLength + extraLength
+            } else {
+                offset++
+            }
+        }
+        throw AssertionError("Local ZIP header not found for $entryName")
+    }
+
     private fun tempDir(): File = createTempDir(prefix = "arcnova-zip-test-")
 
     @Test fun extractsFilesAndReportsTotals() {
@@ -323,6 +353,31 @@ class ZipExtractionEngineTest {
             }
             assertTrue("Cancellation should occur after some output was written", error.bytesWritten > 0L)
             assertTrue(dir.listFiles().orEmpty().isEmpty())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+
+    @Test fun crcMismatchInLaterEntryRollsBackEarlierOutputAndPreservesExistingFiles() {
+        val dir = tempDir()
+        val existing = File(dir, "existing")
+        existing.mkdirs()
+        File(existing, "important.txt").writeText("keep this")
+        val validArchive = archive(
+            "first/complete.txt" to "must be rolled back".toByteArray(),
+            "second/corrupt.txt" to "CRC must fail".toByteArray()
+        )
+        val corruptArchive = corruptLocalHeaderCrc(validArchive, "second/corrupt.txt")
+        try {
+            org.junit.Assert.assertThrows(java.util.zip.ZipException::class.java) {
+                ZipExtractionEngine.extract(ByteArrayInputStream(corruptArchive), dir)
+            }
+            assertFalse(File(dir, "first/complete.txt").exists())
+            assertFalse(File(dir, "second/corrupt.txt").exists())
+            assertFalse(File(dir, "first").exists())
+            assertFalse(File(dir, "second").exists())
+            assertEquals("keep this", File(existing, "important.txt").readText())
         } finally {
             dir.deleteRecursively()
         }
