@@ -74,8 +74,16 @@ object ZipInspectionEngine {
             throw ZipInspectionLimitException(limit.message ?: "ZIP archive exceeds input limit")
         } catch (cancelled: CentralDirectoryZipCancelledException) {
             throw ZipInspectionCancelledException()
-        } catch (limit: CentralDirectoryZipException) {
-            throw ZipInspectionLimitException(limit.message ?: "ZIP validation failed")
+        } catch (limit: CentralDirectoryZipLimitException) {
+            throw ZipInspectionLimitException(limit.message ?: "ZIP inspection limit exceeded")
+        } catch (unsafe: CentralDirectoryZipUnsafePathException) {
+            throw ZipInspectionUnsafePathException(unsafe.entryName)
+        } catch (integrity: CentralDirectoryZipCrcException) {
+            throw ZipInspectionIntegrityException(integrity.entryName, integrity.expectedCrc32, integrity.actualCrc32)
+        } catch (cancelled: CentralDirectoryZipCancelledException) {
+            throw ZipInspectionCancelledException()
+        } catch (invalid: CentralDirectoryZipException) {
+            throw ZipInspectionFormatException(invalid.message ?: "Invalid ZIP archive", invalid)
         }
 
         return ZipInspectionReport(
@@ -208,4 +216,12 @@ data class ZipInspectionReport(
 )
 
 class ZipInspectionLimitException(message: String) : Exception(message)
+class ZipInspectionUnsafePathException(val entryName: String) :
+    Exception("Unsafe ZIP entry path: $entryName")
+class ZipInspectionIntegrityException(
+    val entryName: String,
+    val expectedCrc32: Long,
+    val actualCrc32: Long
+) : Exception("CRC32 mismatch for $entryName: expected $expectedCrc32, got $actualCrc32")
+class ZipInspectionFormatException(message: String, cause: Throwable? = null) : Exception(message, cause)
 class ZipInspectionCancelledException : Exception("ZIP inspection cancelled")
