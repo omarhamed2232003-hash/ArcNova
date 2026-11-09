@@ -10,6 +10,10 @@ SREP + LOLZ / FreeArc-style pipelines are first-class FitGirl targets. Steam/Pro
 
 > **Current reality:** early scaffold and research stage. ArcNova does not currently extract FitGirl repacks, install Steam games, execute Windows installers, or launch PC games. Compatibility must be demonstrated title-by-title with reproducible tests.
 
+## Development roadmap
+
+See [the phased development roadmap](docs/ROADMAP.md) for the current phase, exit gates, and the planned order from engine foundations to final UI and release.
+
 ## Product tracks
 
 1. **Universal file toolkit** — identify unknown files, inspect metadata and signatures, validate integrity, compare, split/join, transform, convert, and perform safe batch operations.
