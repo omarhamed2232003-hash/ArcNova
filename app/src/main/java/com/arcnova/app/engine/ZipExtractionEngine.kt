@@ -232,9 +232,22 @@ object ZipExtractionEngine {
                 entriesProcessed, filesExtracted, directoriesCreated, totalBytes, root
             )
         } catch (error: Exception) {
-            operationFailure = error
-            rollback(createdFiles, createdDirectories, if (destinationExisted) null else root, error)
-            throw error
+            val reportedError = when (error) {
+                is ArchiveSpoolCancelledException -> ZipExtractionCancelledException(error.copiedBytes)
+                is ArchiveSpoolLimitException -> ZipExtractionLimitException(
+                    error.message ?: "Archive exceeds configured input limit",
+                    error.copiedBytes
+                )
+                else -> error
+            }
+            operationFailure = reportedError
+            rollback(
+                createdFiles,
+                createdDirectories,
+                if (destinationExisted) null else root,
+                reportedError
+            )
+            throw reportedError
         } finally {
             archive?.let { opened ->
                 try {
