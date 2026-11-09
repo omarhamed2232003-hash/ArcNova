@@ -164,7 +164,12 @@ class MainActivity : Activity() {
                 val input = contentResolver.openInputStream(source.uri)
                     ?: throw IllegalStateException("Cannot open selected archive")
                 val report = input.use {
-                    ZipInspectionEngine.inspect(it, cancellationRequested = { cancelRequested.get() })
+                    ZipInspectionEngine.inspectCentralDirectory(
+                        input = it,
+                        cacheDirectory = cacheDir,
+                        maxArchiveBytes = MAX_ARCHIVE_INPUT_BYTES,
+                        cancellationRequested = { cancelRequested.get() }
+                    )
                 }
                 val risk = ArchiveRiskAssessment.assess(report)
                 val preview = report.entries.take(40).joinToString("\n") { entry ->
