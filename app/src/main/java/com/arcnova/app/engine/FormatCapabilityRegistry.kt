@@ -52,7 +52,7 @@ object FormatCapabilityRegistry {
         extensions = extensions,
         operationSupport = mapOf(
             FormatOperation.DETECT to SupportLevel.PLANNED,
-            FormatOperation.INSPECT to SupportLevel.PLANNED,
+            FormatOperation.INSPECT to SupportLevel.IMPLEMENTED_CI_TESTED,
             FormatOperation.EXTRACT to SupportLevel.PLANNED,
             FormatOperation.CREATE to SupportLevel.PLANNED
         ),

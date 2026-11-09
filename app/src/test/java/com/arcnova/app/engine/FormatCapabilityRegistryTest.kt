@@ -22,6 +22,12 @@ class FormatCapabilityRegistryTest {
         assertFalse(FormatCapabilityRegistry.findById("freearc")!!.supports(FormatOperation.EXTRACT))
     }
 
+    @Test fun zipInspectionIsReportedAsImplemented() {
+        val zip = FormatCapabilityRegistry.findById("zip")!!
+        assertEquals(SupportLevel.IMPLEMENTED_CI_TESTED, zip.operationSupport[FormatOperation.INSPECT])
+        assertTrue(zip.supports(FormatOperation.INSPECT))
+    }
+
     @Test fun extensionLookupNormalizesDotsAndCase() {
         assertEquals("unreal-pak", FormatCapabilityRegistry.findByExtension(".PAK").single().id)
         assertEquals("stuffit", FormatCapabilityRegistry.findByExtension("SITX").single().id)
