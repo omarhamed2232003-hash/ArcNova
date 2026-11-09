@@ -37,9 +37,9 @@ Identify installer technologies, inspect manifests and payloads, safely extract 
 
 Integrate and validate runtime components, ABI translation, graphics/audio/input adapters, isolated prefixes and per-title profiles. Runtime planning/probing is not the same as a working Wine/Proton runtime. Compatibility is qualified title by title.
 
-## Phase 6 — Final product UI and brand system
+## Phase 6 — Final product UI and brand system (MANDATORY — owner-confirmed)
 
-Only after core workflows and stable engine interfaces are established, replace the engineering harness with the finished ArcNova experience: professional ArcNova wordmark (capital A and N in the same accent color), launcher icon, light/dark system, responsive tablet/phone layouts, file manager, progress/job center, panels, accessibility and polished empty/error states. Do not mistake the current plain screen for the intended design.
+This is a required full product phase, not optional polish and not a small restyle. The owner explicitly confirmed on 2026-11-09 that it must remain in the phase plan and agent handoff and must never be forgotten or skipped. Only after core workflows and stable engine interfaces are established, replace the engineering harness with the finished ArcNova experience: professional ArcNova wordmark (capital A and N in the same accent color), launcher icon, light/dark system, responsive tablet/phone layouts, file manager, progress/job center, panels, accessibility and polished empty/error states. Do not mistake the current plain screen for the intended design. Deliver a complete premium modern Windows-inspired workspace: responsive tablet/phone layouts, file manager, archive browser, task/progress center, polished navigation and panels, coherent design system, light/dark modes, refined transitions/motion, accessible empty/loading/error states, and useful pointer/keyboard/context-menu/drag-drop interactions where appropriate. Include original final wordmark, launcher icon and consistent brand artwork. Phase 6 must be completed before Phase 7 device qualification and Phase 8 release readiness.
 
 ## Phase 7 — Device qualification
 
@@ -51,7 +51,7 @@ Complete security review, privacy/data-flow review, dependency and license notic
 
 ## Build and validation policy
 
-- Current CI runs `gradle testDebugUnitTest` only. Debug APK assembly is intentionally not run on every change; build an APK only at a deliberate integration/device-testing checkpoint. Any APK is an internal test artifact, not a user-facing release.
+- Current CI runs `gradle testDebugUnitTest` only. The single owner-authorized early personal preview APK has already been built and delivered. That exception is consumed: do not build another APK until all eight phases are complete and the owner explicitly authorizes final packaging. Any APK is an internal test artifact, not a user-facing release.
 - Do not spend time polishing the prototype UI before the engine contracts are stable, except for small controls needed to exercise and validate functionality.
 - Do not mark a capability implemented until its actual operation has tests; do not mark it device-validated until it passes on a physical device.
 - Preserve existing files and backups; extend the current architecture incrementally rather than restarting the project.
