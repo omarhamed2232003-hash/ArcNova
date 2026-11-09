@@ -145,3 +145,11 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Added an end-to-end ZIP64 extraction regression using Apache Commons Compress ZIP64 output with `Zip64Mode.Always`. It verifies extraction result counts, exact bytes, payload contents, and spool cleanup through the app-facing central-directory engine.
 - ZIP64 end-to-end test commit: `3ede5bbae7e5aa6c3554cb2985ccda0fd8c56262`. Awaiting its own CI run; not yet CI-tested or device-tested.
 - No APK built. No change to `main`.
+
+
+## ZIP preflight limit error consistency — 2026-11-09
+
+- Run #184 failed one test because the actual-stream output limit was exposed as a backend exception rather than the public extraction limit exception at that point in the commit sequence. The subsequent Run #189 on the later PR merge ref passed all tests, including the actual-output rollback/public exception test. The preview APK job was skipped.
+- Follow-up code review found several metadata preflight limits still threw the generic backend exception (per-file/total declared bytes, declared expansion ratio, declared output overflow, path length/depth). These now throw `CentralDirectoryZipLimitException`, consistently mapped by the extraction facade to `ZipExtractionLimitException`.
+- Added `centralDirectoryDeclaredOutputLimitUsesPublicLimitExceptionBeforeWriting` to assert preflight rejects a declared total-output breach before creating the destination and removes the spool.
+- Commits: `e0fc3f8c6e9dd661cde0f969da7b40a9e7e36391`, `550ba3c4bd08d795987da82f142fd0b5cff10845`. Latest change is code-written, CI pending; not device-tested. No APK built.
