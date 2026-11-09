@@ -80,6 +80,7 @@ There is no universally fastest Wine/Proton + Box64/FEX + graphics-driver combin
 - Android project scaffold and CI build.
 - ZIP extraction flow with safe paths, output limits, cancellation, and unit tests. CI coverage is not yet physical-device validation.
 - Filename-based archive/package format hints for common formats and roadmap targets including WinRK, KGB, UHARC, ZPAQ, DGCA, StuffIt, Unreal PAK/IoStore, Unity AssetBundles, Source VPK, XP3 and RPA. These are extension hints, not proof that file contents are valid.
+- Bounded `FileSignatureDetector` identifies common image, document, executable-candidate, archive, audio, video, and database headers from byte arrays or a limited InputStream prefix without taking ownership of the stream. A signature match is not full-file validation.
 - Typed `FormatCapabilityRegistry` records per-format operation states (detect, inspect, extract, create, encode, install, launch). Only ZIP extraction is currently marked implemented and CI-tested; other listed formats remain planned or detection-only.
 - Bounded streaming transfer primitive and unit tests.
 - Platform-neutral runtime candidate planner with ABI/Vulkan/DirectX/32-bit/RAM/thermal checks and per-game profile validation.
