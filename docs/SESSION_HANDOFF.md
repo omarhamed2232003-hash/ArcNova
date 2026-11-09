@@ -250,3 +250,11 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Latest code-head CI Run #245 (PR event) and associated push runs were in progress at handoff preparation; verify matching SHA after documentation commits before calling the new tests passed. Do not confuse earlier successful Runs #239/#240 with the new code.
 - No APK built. No physical-device test. No `main` changes and no merge.
 - Next task: verify CI on the final docs-updated head; inspect/fix any test failure. Then continue Phase 1 adversarial ZIP and SAF-provider coverage, preserving the modern AndroidX picker and the experimental/production status already documented.
+
+
+### CI follow-up — ZIP inspection CRC fixture correction
+
+- PR Run #243 / push Run #242 failed during test-source compilation, not production Kotlin compilation or ZIP runtime tests. Exact compiler diagnostic: `ZipInspectionEngineTest.kt:111:47 Argument type mismatch: actual type is 'ByteArray', but 'Byte' was expected.`
+- Root cause: the new test used `ByteArray.indexOf(ByteArray)`, but Kotlin's `indexOf` searches for one `Byte`, not a byte subsequence.
+- Replaced it with a bounded explicit subsequence search in the test fixture. Fix commit: `a58cebbe3c042b7299c1dbffa27c77657a1e9b15`.
+- Matching CI for this fix is queued as Run #250 (push) at handoff time. Verify its exact SHA/result before calling the ZIP inspection changes CI-tested. Earlier failures #242/#243 must remain recorded as test-fixture compilation failure, not as production code failure.
