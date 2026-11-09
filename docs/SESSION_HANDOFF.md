@@ -183,3 +183,27 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Explicitly avoid deprecated APIs in new code when modern supported alternatives exist. Any legacy exception needs a documented technical/compatibility reason and migration path.
 - Research policy commit: `8b9a1b15b560b18f3d2415c29397a31e050215c8`. Documentation-only change; matching CI must be checked before claiming validation.
 - The SAF picker modernization is a separate code change currently awaiting CI; see the preceding SAF picker section. Do not claim the new picker code has passed CI or been physically tested until matching evidence exists.
+
+
+## Modern AndroidX SAF picker migration — 2026-11-10
+
+### Research and decision
+- Owner requirement: modern-first research before each material engineering choice, using public sources beyond GitHub.
+- Compared platform legacy `startActivityForResult/onActivityResult` with AndroidX Activity Result APIs. Android's official guide explicitly recommends Activity Result APIs and explains unconditional lifecycle registration so results survive Activity recreation: https://developer.android.com/training/basics/intents/result
+- Verified official contracts: `ActivityResultContracts.OpenDocument` (https://developer.android.com/reference/androidx/activity/result/contract/ActivityResultContracts.OpenDocument) and `OpenDocumentTree` (https://developer.android.com/reference/androidx/activity/result/contract/ActivityResultContracts.OpenDocumentTree).
+- Checked AndroidX Activity release notes: stable `androidx.activity:activity-ktx:1.13.0`; `1.14.0-alpha03` is prerelease as of 2026-11-10. Selected stable 1.13.0, not alpha: https://developer.android.com/jetpack/androidx/releases/activity
+- AndroidX contracts remain backed by the Storage Access Framework actions; SAF is still the supported document/tree access mechanism. This migration modernizes lifecycle/result handling, it does not replace SAF.
+- AndroidX Activity is Apache-2.0; recorded in `THIRD_PARTY_NOTICES.md`.
+
+### Implemented
+- `MainActivity` now extends `ComponentActivity`.
+- Registered `OpenDocument` and `OpenDocumentTree` launchers as Activity properties, before Activity creation, and launches them from the picker actions.
+- Removed `startActivityForResult`, request-code constants, and `onActivityResult`.
+- Retained background-thread provider metadata/open/read probing and user-visible error reporting.
+- Added `androidx.activity:activity-ktx:1.13.0` to app dependencies.
+
+### Validation status
+- Code has been committed to the feature branch; compile/CI and physical-device checks are pending.
+- Persistable URI grant is attempted from the returned URI. Provider-specific grant behavior still requires validation; cancellation returns null and leaves the current selection unchanged.
+- Must test picking from Downloads, internal storage, and any cloud/document provider available; select a destination folder; extract; inspect; cancel; and verify permissions after Activity/process recreation.
+- This change does not prove the earlier intermittent "Use this folder" issue is fully resolved. It removes the deprecated result callback path and improves lifecycle correctness, while provider compatibility remains an end-to-end test requirement.
