@@ -2,7 +2,8 @@
 
 This file tracks third-party software considered or used by ArcNova. **Researching or mentioning a project does not mean its code or binaries are included in ArcNova.** The current app scaffold contains no bundled Wine/Proton, Steam client, Box64/FEX, Turnip, DXVK, VKD3D-Proton, FreeArc, SREP, or LOLZ payloads.
 
-## Current direct build dependency
+## Current direct build dependencies
+- Apache Commons Compress 1.28.0 — Apache-2.0; currently added for the ZIP Central Directory backend evaluation spike. Not yet wired into the production extraction path. Preserve the upstream LICENSE and NOTICE text and review its mandatory transitive dependencies before release.
 - JUnit 4.13.2 — test dependency declared in `app/build.gradle.kts`. Retain the license notice for the exact artifact used in each distributed build.
 
 ## Projects studied as references (not bundled)
