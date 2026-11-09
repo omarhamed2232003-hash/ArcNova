@@ -80,8 +80,6 @@ object ZipInspectionEngine {
             throw ZipInspectionUnsafePathException(unsafe.entryName)
         } catch (integrity: CentralDirectoryZipCrcException) {
             throw ZipInspectionIntegrityException(integrity.entryName, integrity.expectedCrc32, integrity.actualCrc32)
-        } catch (cancelled: CentralDirectoryZipCancelledException) {
-            throw ZipInspectionCancelledException()
         } catch (invalid: CentralDirectoryZipException) {
             throw ZipInspectionFormatException(invalid.message ?: "Invalid ZIP archive", invalid)
         }
