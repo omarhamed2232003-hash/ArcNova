@@ -1,7 +1,7 @@
 # ArcNova — Current Session Handoff
 
 > **Purpose:** Fast, reliable recovery when a new AI chat/session opens. Read this after `AGENTS.md`, then re-check GitHub before acting. This is a snapshot, not an authority over live repository state.
-> **Snapshot verified:** 2026-11-09 22:10 UTC.
+> **Snapshot verified:** 2026-11-09 22:20 UTC.
 
 ## Repository and working lane
 
@@ -76,7 +76,7 @@ Latest completed work:
 4. Changed CI to unit tests only (no per-change Debug APK).
 5. Confirmed Run #88 passed on `8fbae0f...`.
 
-**Current concrete task:** obtain CI validation for `c7b8216` and continue adversarial ZIP coverage: actual streamed total-output limit, output-write failure rollback, and close/spool-cleanup behavior. The reverse-order file/directory conflict test is now added; it is awaiting CI. Review the full ZIP regression suite after these additions. Keep the Central Directory route experimental; do not switch the production default until all tests and Android device/provider checks justify it. Investigate Zip4j only if encrypted/split ZIP becomes an active requirement.
+**Current concrete task:** obtain CI validation for `c7b8216` and continue adversarial ZIP coverage: actual streamed total-output limit, output-write failure rollback, and close/spool-cleanup behavior. The reverse-order file/directory conflict test passed CI on commit `426677c` (run #42687654847). The next commit `49d6398` adds tests for an understated Central Directory size (to exercise the actual streamed total-output limit) and an output stream that throws after partial writes while remaining caller-owned; these newest tests are awaiting CI. Review the full ZIP regression suite after these additions. Keep the Central Directory route experimental; do not switch the production default until all tests and Android device/provider checks justify it. Investigate Zip4j only if encrypted/split ZIP becomes an active requirement.
 
 After that, re-evaluate Phase 1 exit criteria and the best next dependency-driven increment. Keep the broader universal file-analysis foundation in view; do not treat the ZIP task as the whole product.
 
