@@ -85,8 +85,8 @@ class ZipCentralDirectoryBackendTest {
             }
         }
         check(eocdOffset >= 0) { "End of Central Directory not found" }
-        val originalCentralOffset = littleEndianInt(combined, eocdOffset + 16) - orphanRecord.size
-        writeLittleEndianInt(combined, eocdOffset + 16, originalCentralOffset + orphanRecord.size)
+        val centralOffset = littleEndianInt(combined, eocdOffset + 16)
+        writeLittleEndianInt(combined, eocdOffset + 16, centralOffset + orphanRecord.size)
         return combined
     }
 
