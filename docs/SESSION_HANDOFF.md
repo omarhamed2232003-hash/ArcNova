@@ -127,3 +127,12 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Updated `extractCentralDirectory` to map spool cancellation to `ZipExtractionCancelledException` and spool size rejection to `ZipExtractionLimitException`, preserving copied-byte counts and rollback behavior.
 - Added tests proving both errors use the public extraction exception types, remove temporary spool files, and remove a destination root created by the failed operation.
 - Code commits: `9c186f1ee34049f661389b3cce97972a49ee944d` and `ac0c634310a764facf73502d89cda0295ed713ba`. These newest tests are pending CI; do not describe them as passed until a matching Actions run succeeds.
+
+
+## Phase 1 — actual-output rollback and public error contract — 2026-11-09
+
+- Confirmed Runs #176 and #179 passed; #176 includes the extraction spool-limit and cancellation rollback tests. Preview APK job was skipped.
+- Reviewed the existing actual-stream total-output test: it deliberately understates the Central Directory uncompressed size, then confirms rollback removes the partial file and earlier extracted files/directories while preserving pre-existing destination content and cleaning the spool.
+- Improved error typing: added `CentralDirectoryZipLimitException` for policy/actual-output limit violations; the extraction engine maps backend cancellation and limit exceptions to the public `ZipExtractionCancelledException` and `ZipExtractionLimitException` types. CRC and malformed archive exceptions remain distinct.
+- Updated the actual-output rollback test to assert the public `ZipExtractionLimitException` contract, not the backend-internal exception.
+- Commits: `d0e334f86572a4f8c329d3c1e3df4557dcd5391e`, `306fb1c42bdc28d2d52e955895c15c527c8e160f`, `6a698b9b4f02fcc2e7abcf98467903d9ee5599ef`. Latest tests pending CI. No APK built; no device validation.
