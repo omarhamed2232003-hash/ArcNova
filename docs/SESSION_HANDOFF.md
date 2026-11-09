@@ -1,7 +1,7 @@
 # ArcNova — Current Session Handoff
 
 > **Purpose:** Fast, reliable recovery when a new AI chat/session opens. Read this after `AGENTS.md`, then re-check GitHub before acting. This is a snapshot, not an authority over live repository state.
-> **Snapshot verified:** 2026-11-09 20:05 UTC.
+> **Snapshot verified:** 2026-11-09 22:00 UTC.
 
 ## Repository and working lane
 
@@ -11,7 +11,7 @@
 - Open PR: [#1 — Make ZIP extraction and SAF destination copy transactional](https://github.com/omarhamed2232003-hash/ArcNova/pull/1)
 - PR #1 is **open, Draft, not merged**. Do not merge it or modify `main` without explicit owner authorization.
 - Verified `main` HEAD: `ff50413b044cc788f7d1604728a365a76119889f`.
-- Verified development HEAD at this snapshot: `415a95ff25fb38b478b1fffbde0fe03398598cff`.
+- Verified development HEAD at this snapshot: `dae378b7a8bf93a32a090596e359c744bbd67056`.
 - Development HEAD is ahead of `main`; all work described below is on the development branch. `main` has not been changed by this work. This does not mean `main` has been independently proven stable.
 
 ## Current CI truth
@@ -24,8 +24,8 @@
 - Added `CentralDirectoryZipBackend`: preflights Central Directory paths and declared limits, streams payloads with actual-size and CRC32 validation, and owns cleanup of both `ZipFile` and spool. The initial CI attempt exposed a Kotlin backslash escaping compile error; it was fixed in commit `33601c3...`, and [Run #122](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42663863045) passed.
 - Added preflight rejection for file-vs-directory ancestor conflicts; Runs #123 and #124 passed. Run #125 and #126 also passed, including documentation/status updates.
 - Added `ZipExtractionEngine.extractCentralDirectory(...)`: it maps existing `ExtractionPolicy` limits into the backend, creates output through the existing no-overwrite filesystem transaction, reports progress, and rolls back created files/directories on CRC, copy, cancellation, or callback failure. It closes the backend before reporting success so spool cleanup failure also aborts the operation.
-- Added integration tests for successful extraction, Central Directory CRC failure rollback while preserving pre-existing files, cancellation rollback, and preflight path rejection. Added adversarial adapter tests for file/directory path conflicts, expansion-ratio limits, and cancellation while copying. Runs #127-#130 are pending at this snapshot; do not claim integration or newest tests passed until Actions completes.
-- The original `ZipInputStream` API remains the production default. The new Central Directory path is experimental and callable but not yet promoted; full regression/adversarial CI and device validation remain required.
+- Added integration tests for successful extraction, Central Directory CRC failure rollback while preserving pre-existing files, cancellation rollback, and preflight path rejection. Added adversarial adapter tests for file/directory path conflicts, expansion-ratio limits, and cancellation while copying. Runs #127-#131 passed. The follow-up progress-callback rollback test in commit `dae378b7a8bf93a32a090596e359c744bbd67056` also passed on GitHub Actions Run [#42686986328](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42686986328); job `test` and step `Run unit tests` completed successfully.
+- The original `ZipInputStream` API remains the production default. The new Central Directory path and its current regression/adversarial unit tests are CI-tested, but the path remains experimental and is not promoted as the production default. Physical-device and real SAF provider validation remain required.
 - CI success does not prove physical Android/SAF provider behavior or release readiness.
 - Previous Run #87 on `bed52b8...` also passed. Do not confuse older run results with the latest run.
 
@@ -76,7 +76,7 @@ Latest completed work:
 4. Changed CI to unit tests only (no per-change Debug APK).
 5. Confirmed Run #88 passed on `8fbae0f...`.
 
-**Current concrete task:** verify CI runs #127 onward for `extractCentralDirectory` and the new rollback/adversarial tests. Fix any compile/test failures using job logs. Add any missing rollback tests (especially callback/output-write failure and total-output limits), then run the full existing ZIP regression suite. Do not promote this path to production default until the full suite passes; do not replace the existing extractor yet. Keep Zip4j as a specialist fallback for encrypted/split ZIP if needed.
+**Current concrete task:** continue adversarial ZIP validation: actual streamed total-output limit, output-write failure rollback, close/spool-cleanup behavior, and both file-vs-directory conflict orderings. Review the full ZIP regression suite after these additions. Keep the Central Directory route experimental; do not switch the production default until all tests and Android device/provider checks justify it. Investigate Zip4j only if encrypted/split ZIP becomes an active requirement.
 
 After that, re-evaluate Phase 1 exit criteria and the best next dependency-driven increment. Keep the broader universal file-analysis foundation in view; do not treat the ZIP task as the whole product.
 
