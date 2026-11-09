@@ -83,10 +83,10 @@ object FormatCapabilityRegistry {
             operationSupport = mapOf(
                 FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
                 FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
-                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.INSPECT to SupportLevel.IMPLEMENTED_CI_TESTED,
                 FormatOperation.CREATE to SupportLevel.PLANNED
             ),
-            notes = "Bounded ZIP extraction is implemented with path safety, limits, cancellation, and unit tests; physical-device validation is pending."
+            notes = "Bounded ZIP extraction and streaming inspection are implemented with path safety, limits, cancellation, and unit tests; physical-device validation is pending."
         ),
         detected("7z", "7-Zip", FormatFamily.GENERAL_ARCHIVE, listOf("7z"), "Detection only; no 7z decoder is registered."),
         detected("rar", "RAR", FormatFamily.GENERAL_ARCHIVE, listOf("rar", "r00"), "Detection only; no RAR decoder is registered."),
