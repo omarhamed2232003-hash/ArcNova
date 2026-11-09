@@ -6,13 +6,17 @@ import org.junit.Test
 class WindowsInstallerDetectorTest {
     private fun peWithMarker(marker: String): ByteArray {
         val bytes = ByteArray(512)
-        bytes[0] = 0x4d; bytes[1] = 0x5a; bytes[0x3c] = 0x40
-        bytes[0x40] = 0x50; bytes[0x41] = 0x45
-        bytes[0x44] = 0x64.toByte(); bytes[0x45] = 0x86.toByte()
+        bytes[0] = 0x4d.toByte()
+        bytes[1] = 0x5a.toByte()
+        bytes[0x3c] = 0x40.toByte()
+        bytes[0x40] = 0x50.toByte()
+        bytes[0x41] = 0x45.toByte()
+        bytes[0x44] = 0x64.toByte()
+        bytes[0x45] = 0x86.toByte()
         bytes[0x54] = 0xf0.toByte()
-        bytes[0x58] = 0x0b; bytes[0x59] = 0x02
-        val markerBytes = marker.toByteArray(Charsets.ISO_8859_1)
-        markerBytes.copyInto(bytes, 128)
+        bytes[0x58] = 0x0b.toByte()
+        bytes[0x59] = 0x02.toByte()
+        marker.toByteArray(Charsets.ISO_8859_1).copyInto(bytes, 128)
         return bytes
     }
 
