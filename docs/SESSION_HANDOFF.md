@@ -1,7 +1,7 @@
 # ArcNova — Current Session Handoff
 
 > **Purpose:** Fast, reliable recovery when a new AI chat/session opens. Read this after `AGENTS.md`, then re-check GitHub before acting. This is a snapshot, not an authority over live repository state.
-> **Snapshot verified:** 2026-11-09 14:16 UTC.
+> **Snapshot verified:** 2026-11-09 14:28 UTC.
 
 ## Repository and working lane
 
@@ -11,15 +11,16 @@
 - Open PR: [#1 — Make ZIP extraction and SAF destination copy transactional](https://github.com/omarhamed2232003-hash/ArcNova/pull/1)
 - PR #1 is **open, Draft, not merged**. Do not merge it or modify `main` without explicit owner authorization.
 - Verified `main` HEAD: `ff50413b044cc788f7d1604728a365a76119889f`.
-- Verified development HEAD: `aa957cf7ea8c229a7ad674cfbcc23a40fce522d5`.
+- Verified development HEAD: `1466d75af614c07a0cd9e29287066b7d1935b89d`.
 - Development HEAD is ahead of `main`; all work described below is on the development branch. `main` has not been changed by this work. This does not mean `main` has been independently proven stable.
 
 ## Current CI truth
 
 - Workflow: `.github/workflows/android.yml`.
 - Current policy: run unit tests only with `gradle testDebugUnitTest`; no automatic Debug APK build or artifact upload on each change.
-- Latest completed successful test run: [Run #96](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42632625435) on commit `aa957cf7ea8c229a7ad674cfbcc23a40fce522d5` — **completed / success**. Job `test` and the `Run unit tests` step passed.
-- Run #95 also passed on the prior ZIP CRC-test fix (`8a7490a...`). Run #96 validates the truncated compressed-payload rollback regression test.
+- Latest completed successful test run: [Run #97](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42632990138) on commit `2cc4fdd4201e321e0b2db12f564c3f86152c750f` — **completed / success**. Job `test` and the `Run unit tests` step passed. This includes the exact-entry-count boundary test.
+- [Run #96](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42632625435) passed the truncated compressed-payload rollback test; [Run #95](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42632111783) passed the corrected CRC Data Descriptor test.
+- A documentation-only ZIP backend evaluation commit now advances the branch to `1466d75...`; its Actions run must be checked before treating that HEAD as CI-tested.
 - CI success does not prove physical Android/SAF provider behavior or release readiness.
 - Previous Run #87 on `bed52b8...` also passed. Do not confuse older run results with the latest run.
 
@@ -70,7 +71,7 @@ Latest completed work:
 4. Changed CI to unit tests only (no per-change Debug APK).
 5. Confirmed Run #88 passed on `8fbae0f...`.
 
-**Next concrete engineering task:** review ZIP extraction edge cases and decide whether the streaming `ZipInputStream` approach meets ArcNova's integrity requirements or whether a mature ZIP library with central-directory validation is preferable. Research reusable Android-compatible libraries first, verifying exact license, maintenance, security history, and ARM64/runtime fit. Then add focused tests for entry-count boundary behavior and malformed archive variants only where runtime semantics are understood. Do not claim central-directory validation from the current local-header streaming reader.
+**Next concrete engineering task:** implement a focused Android/JVM integration spike for Apache Commons Compress 1.28.0 `ZipFile` (see `docs/ZIP_BACKEND_EVALUATION.md`). Do not replace the current extractor yet. Verify dependency resolution/build on the existing Android project, exercise Central Directory enumeration and entry streams against malformed/truncated/CRC fixtures, and measure dependency footprint. Preserve ArcNova's bounded transactional writer and tests. Keep Zip4j as a fallback for encrypted/split ZIP if needed. Do not mark either library integrated until the spike passes CI and its security/rollback tests.
 
 After that, re-evaluate Phase 1 exit criteria and the best next dependency-driven increment. Keep the broader universal file-analysis foundation in view; do not treat the ZIP task as the whole product.
 
