@@ -1,7 +1,7 @@
 # ArcNova — Current Session Handoff
 
 > **Purpose:** Fast, reliable recovery when a new AI chat/session opens. Read this after `AGENTS.md`, then re-check GitHub before acting. This is a snapshot, not an authority over live repository state.
-> **Snapshot verified:** 2026-11-09 14:00 UTC.
+> **Snapshot verified:** 2026-11-09 14:02 UTC.
 
 ## Repository and working lane
 
@@ -11,16 +11,16 @@
 - Open PR: [#1 — Make ZIP extraction and SAF destination copy transactional](https://github.com/omarhamed2232003-hash/ArcNova/pull/1)
 - PR #1 is **open, Draft, not merged**. Do not merge it or modify `main` without explicit owner authorization.
 - Verified `main` HEAD: `ff50413b044cc788f7d1604728a365a76119889f`.
-- Verified development HEAD: `8fbae0f58b1a78d534762506af03d5a1030d248d`.
+- Verified development HEAD: `6257728d4d3753fc0e4a02a4a094ae9a188ae1ec`.
 - Development HEAD is ahead of `main`; all work described below is on the development branch. `main` has not been changed by this work. This does not mean `main` has been independently proven stable.
 
 ## Current CI truth
 
 - Workflow: `.github/workflows/android.yml`.
 - Current policy: run unit tests only with `gradle testDebugUnitTest`; no automatic Debug APK build or artifact upload on each change.
-- Latest verified run for current HEAD: [Run #88](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42630105135) — **completed / success**.
-- Job `test`: success; checkout, Java setup, Gradle setup, and `Run unit tests` all completed successfully.
-- This proves CI unit tests passed for commit `8fbae0f...`; it does not prove physical Android/SAF provider behavior or release readiness.
+- Latest completed successful test run: [Run #88](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42630105135) on commit `8fbae0f...` — **completed / success**. Job `test` and its `Run unit tests` step passed.
+- Documentation/handoff updates advanced the branch to `6257728...`; [Run #91](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42630713689) for that HEAD was **in progress** when this snapshot was checked. Re-check the latest run before claiming the updated documentation commit is CI-tested.
+- CI success does not prove physical Android/SAF provider behavior or release readiness.
 - Previous Run #87 on `bed52b8...` also passed. Do not confuse older run results with the latest run.
 
 ## Product direction — preserve
