@@ -36,58 +36,49 @@ object ArchiveRiskAssessment {
         add("high-compression-ratio", RiskSeverity.HIGH, highRatios,
             "One or more entries expand by an unusually high ratio.")
 
-        val executable = report.entries.count {
-            extension(it.name) in EXECUTABLE_EXTENSIONS
-        }
-        add("executable-content", RiskSeverity.MEDIUM, executable,
+        add("executable-content", RiskSeverity.MEDIUM,
+            report.entries.count { extension(it.name) in EXECUTABLE_EXTENSIONS },
             "The archive contains executable or installer-like files.")
-
-        val scripts = report.entries.count {
-            extension(it.name) in SCRIPT_EXTENSIONS
-        }
-        add("script-content", RiskSeverity.HIGH, scripts,
+        add("script-content", RiskSeverity.HIGH,
+            report.entries.count { extension(it.name) in SCRIPT_EXTENSIONS },
             "The archive contains scripts that may execute commands.")
-
-        val nestedArchives = report.entries.count {
-            extension(it.name) in ARCHIVE_EXTENSIONS
-        }
-        add("nested-archives", RiskSeverity.LOW, nestedArchives,
+        add("nested-archives", RiskSeverity.LOW,
+            report.entries.count { extension(it.name) in ARCHIVE_EXTENSIONS },
             "The archive contains nested archive files.")
-
-        val hiddenEntries = report.entries.count {
-            it.name.replace('\\\\', '/').substringAfterLast('/').startsWith(".")
-        }
-        add("hidden-entry", RiskSeverity.LOW, hiddenEntries,
+        add("hidden-entry", RiskSeverity.LOW,
+            report.entries.count {
+                it.name.replace('\\\\', '/').substringAfterLast('/').startsWith(".")
+            },
             "The archive contains hidden or dot-prefixed entries.")
-
-        val doubleExtensions = report.entries.count { entry ->
-            val name = entry.name.substringAfterLast('/').lowercase()
-            DOUBLE_EXTENSION_PATTERN.containsMatchIn(name)
-        }
-        add("double-extension", RiskSeverity.MEDIUM, doubleExtensions,
+        add("double-extension", RiskSeverity.MEDIUM,
+            report.entries.count {
+                DOUBLE_EXTENSION_PATTERN.matches(it.name.substringAfterLast('/').lowercase())
+            },
             "One or more filenames use potentially deceptive double extensions.")
 
         return ArchiveRiskReport(findings)
     }
 
-    private fun extension(path: String): String =
-        path.substringAfterLast('/').substringAfterLast('.').lowercase()
-            .takeIf { it != path.substringAfterLast('/') } ?: ""
+    private fun extension(path: String): String {
+        val name = path.substringAfterLast('/').substringAfterLast('\\\\')
+        val dot = name.lastIndexOf('.')
+        return if (dot <= 0 || dot == name.lastIndex) "" else name.substring(dot + 1).lowercase()
+    }
 
     private val EXECUTABLE_EXTENSIONS = setOf("exe", "dll", "msi", "com", "scr", "apk")
     private val SCRIPT_EXTENSIONS = setOf("bat", "cmd", "ps1", "vbs", "js", "sh")
     private val ARCHIVE_EXTENSIONS = setOf("zip", "7z", "rar", "tar", "gz", "bz2", "xz", "zst")
     private val DOUBLE_EXTENSION_PATTERN =
-        Regex(""".+\.(pdf|jpg|jpeg|png|txt|doc|docx)\.(exe|scr|com|bat|cmd|js|vbs|ps1)$"")
+        Regex(""".+\.(pdf|jpg|jpeg|png|txt|doc|docx)\.(exe|scr|com|bat|cmd|js|vbs|ps1)$""")
+}
 
-    data class ArchiveRiskThresholds(
-        val maxEntriesWarning: Int = 10_000,
-        val maxCompressionRatioWarning: Double = 100.0
-    ) {
-        init {
-            require(maxEntriesWarning >= 0)
-            require(maxCompressionRatioWarning.isFinite() && maxCompressionRatioWarning > 0.0)
-        }
+data class ArchiveRiskThresholds(
+    val maxEntriesWarning: Int = 10_000,
+    val maxCompressionRatioWarning: Double = 100.0
+) {
+    init {
+        require(maxEntriesWarning >= 0)
+        require(maxCompressionRatioWarning.isFinite() && maxCompressionRatioWarning > 0.0)
     }
 }
 
