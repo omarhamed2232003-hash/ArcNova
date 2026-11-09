@@ -153,3 +153,12 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Follow-up code review found several metadata preflight limits still threw the generic backend exception (per-file/total declared bytes, declared expansion ratio, declared output overflow, path length/depth). These now throw `CentralDirectoryZipLimitException`, consistently mapped by the extraction facade to `ZipExtractionLimitException`.
 - Added `centralDirectoryDeclaredOutputLimitUsesPublicLimitExceptionBeforeWriting` to assert preflight rejects a declared total-output breach before creating the destination and removes the spool.
 - Commits: `e0fc3f8c6e9dd661cde0f969da7b40a9e7e36391`, `550ba3c4bd08d795987da82f142fd0b5cff10845`. Latest change is code-written, CI pending; not device-tested. No APK built.
+
+
+## SAF destination copy failure-path coverage — 2026-11-09
+
+- Verified ZIP64 end-to-end CI Runs #192/#195 and ZIP preflight/error contract Runs #193/#202 passed. The preview APK job was skipped.
+- Reviewed `TransactionalTreeCopy` and its fake document-provider tests. Existing coverage exercises create/open/partial-write/progress/cancellation failures and rollback refusal reporting.
+- Added a missing provider lifecycle case: output stream close fails after a payload has been written. The test asserts the newly created SAF document is rolled back and pre-existing destination content remains untouched.
+- Test commit: `fa11c95ebf3cae0dfb32afb3dcb12c8fb2571223`; awaiting matching CI. This remains a fake-provider unit test, not a real Android SAF/device validation.
+- No APK built and no main-branch changes.
