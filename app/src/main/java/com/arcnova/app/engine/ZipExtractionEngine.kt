@@ -26,6 +26,8 @@ object ZipExtractionEngine {
         require(policy.maxEntries > 0) { "maxEntries must be positive" }
         require(policy.maxSingleFileBytes >= 0L) { "maxSingleFileBytes must not be negative" }
         require(policy.maxTotalOutputBytes >= 0L) { "maxTotalOutputBytes must not be negative" }
+        require(policy.maxPathLength > 0) { "maxPathLength must be positive" }
+        require(policy.maxPathDepth > 0) { "maxPathDepth must be positive" }
         require(policy.maxExpansionRatio.isFinite() && policy.maxExpansionRatio > 0.0) {
             "maxExpansionRatio must be finite and greater than zero"
         }
@@ -38,6 +40,7 @@ object ZipExtractionEngine {
         var files = 0
         var directories = 0
         val buffer = ByteArray(BUFFER_SIZE)
+        val seenOutputPaths = mutableSetOf<String>()
 
         // Do not close the caller-owned input stream; the caller controls its lifecycle.
         val zip = ZipInputStream(BufferedInputStream(input))
@@ -49,8 +52,11 @@ object ZipExtractionEngine {
                     throw ZipExtractionLimitException("Entry count exceeds ${policy.maxEntries}", totalBytes)
                 }
 
-                val relative = sanitizeEntryName(entry.name)
+                val relative = sanitizeEntryName(entry.name, policy)
                 val output = File(root, relative).canonicalFile
+                if (!seenOutputPaths.add(output.path)) {
+                    throw ZipExtractionException("Duplicate normalized output path: $relative", totalBytes)
+                }
                 if (output != root && !output.path.startsWith(root.path + File.separator)) {
                     throw UnsafeArchivePathException(entry.name)
                 }
@@ -121,7 +127,7 @@ object ZipExtractionEngine {
         return ZipExtractionResult(entries, files, directories, totalBytes, root)
     }
 
-    private fun sanitizeEntryName(name: String): String {
+    private fun sanitizeEntryName(name: String, policy: ExtractionPolicy): String {
         if (name.isBlank() || name.indexOf('\u0000') >= 0) throw UnsafeArchivePathException(name)
         val normalized = name.replace('\\', '/')
         if (normalized.startsWith('/') || normalized.startsWith("//") ||
@@ -135,6 +141,9 @@ object ZipExtractionEngine {
         }
         val safe = parts.filter { it.isNotEmpty() }
         if (safe.isEmpty()) throw UnsafeArchivePathException(name)
+        if (normalized.length > policy.maxPathLength || safe.size > policy.maxPathDepth) {
+            throw ZipExtractionLimitException("Entry path exceeds configured length or depth: $name", 0L)
+        }
         return safe.joinToString(File.separator)
     }
 

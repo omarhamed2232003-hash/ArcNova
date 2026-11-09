@@ -28,6 +28,11 @@ class FormatCapabilityRegistryTest {
         assertTrue(zip.supports(FormatOperation.INSPECT))
     }
 
+    @Test fun plannedFormatsNeverClaimInspectionIsAvailable() {
+        FormatCapabilityRegistry.all.filter { it.id != "zip" && it.operationSupport[FormatOperation.INSPECT] == SupportLevel.PLANNED }
+            .forEach { assertFalse("${it.id} must not claim inspection support", it.supports(FormatOperation.INSPECT)) }
+    }
+
     @Test fun extensionLookupNormalizesDotsAndCase() {
         assertEquals("unreal-pak", FormatCapabilityRegistry.findByExtension(".PAK").single().id)
         assertEquals("stuffit", FormatCapabilityRegistry.findByExtension("SITX").single().id)

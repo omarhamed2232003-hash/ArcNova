@@ -78,6 +78,37 @@ class ZipExtractionEngineTest {
         }
     }
 
+    @Test fun rejectsDuplicatePathsAfterSeparatorNormalization() {
+        val dir = tempDir()
+        try {
+            org.junit.Assert.assertThrows(ZipExtractionException::class.java) {
+                ZipExtractionEngine.extract(
+                    ByteArrayInputStream(archive("folder\\\\item.txt" to byteArrayOf(1), "folder/item.txt" to byteArrayOf(2))),
+                    dir
+                )
+            }
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun enforcesMaximumPathLengthAndDepth() {
+        val dir = tempDir()
+        try {
+            org.junit.Assert.assertThrows(ZipExtractionLimitException::class.java) {
+                ZipExtractionEngine.extract(ByteArrayInputStream(archive("longname.txt" to byteArrayOf(1))), dir,
+                    ExtractionPolicy(maxPathLength = 5))
+            }
+            org.junit.Assert.assertThrows(ZipExtractionLimitException::class.java) {
+                ZipExtractionEngine.extract(ByteArrayInputStream(archive("a/b/c.txt" to byteArrayOf(1))), dir,
+                    ExtractionPolicy(maxPathDepth = 2))
+            }
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun rejectsInvalidPathLimits() {
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) { ExtractionPolicy(maxPathLength = 0) }
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) { ExtractionPolicy(maxPathDepth = 0) }
+    }
+
     @Test fun observesCancellationBeforeFirstEntry() {
         val dir = tempDir()
         try {

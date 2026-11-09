@@ -17,5 +17,7 @@ data class ExtractionPolicy(
     val maxEntries: Int = 100_000,
     val maxSingleFileBytes: Long = 20L * 1024L * 1024L * 1024L,
     val maxTotalOutputBytes: Long = 100L * 1024L * 1024L * 1024L,
-    val maxExpansionRatio: Double = 10_000.0
+    val maxExpansionRatio: Double = 10_000.0,
+    val maxPathLength: Int = 4096,
+    val maxPathDepth: Int = 64
 )

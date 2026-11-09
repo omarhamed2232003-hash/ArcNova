@@ -42,7 +42,8 @@ object ZipInspectionEngine {
                 val current = entry!!
                 val name = current.name
                 val unsafe = isUnsafePath(name)
-                val duplicate = !seenNames.add(name)
+                val normalizedName = name.replace('\\\\', '/').split('/').filter { it.isNotEmpty() }.joinToString("/")
+                val duplicate = !seenNames.add(normalizedName)
                 var entryBytes = 0L
                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
 

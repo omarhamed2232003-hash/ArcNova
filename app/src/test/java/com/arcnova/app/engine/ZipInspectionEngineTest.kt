@@ -39,6 +39,14 @@ class ZipInspectionEngineTest {
         assertTrue(report.entries.single().hasUnsafePath)
     }
 
+    @Test fun detectsDuplicateNamesAfterSeparatorNormalization() {
+        val report = ZipInspectionEngine.inspect(ByteArrayInputStream(archive(
+            "folder\\\\item.txt" to byteArrayOf(1), "folder/item.txt" to byteArrayOf(2)
+        )))
+        assertEquals(1, report.duplicateNameCount)
+        assertTrue(report.entries.last().isDuplicateName)
+    }
+
     @Test fun enforcesEntryAndOutputLimits() {
         val bytes = archive("one" to ByteArray(32) { 1 })
         try {
