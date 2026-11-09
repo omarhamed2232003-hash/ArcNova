@@ -197,3 +197,37 @@ At every step, choose work by dependency, risk reduction, user value, and readin
 6. Do not postpone security, licensing, storage limits, cancellation, rollback, diagnostics, or device-performance work when it is a prerequisite for a safe/reliable engine.
 
 The owner explicitly said the premium interface and Windows-inspired desktop direction need not be the immediate task if a more important foundation comes first, but essential work must not be forgotten or unnecessarily postponed. Make the next-step choice yourself based on the actual repository state; do not ask the owner to re-state this direction.
+
+
+## 12. Container profiles, switchable interfaces, and guest environments — owner-confirmed direction
+
+The owner explicitly requested (2026-11-09) that ArcNova's container-building experience support switching between interfaces/environments, and provide as broad a set as practical of Windows versions and other operating systems that can help inspect, browse, open, extract, or work with files.
+
+### Product behavior
+- A container/workspace must not be permanently locked to one visual shell. Where the backend permits, the user can switch the active presentation/interface for the same underlying workspace and files.
+- Distinguish three independent concepts in both architecture and UI: (1) visual shell/interface profile; (2) actual guest OS/compatibility profile; (3) tool/engine profile, including parsers, archive utilities, codecs, runtimes, and file handlers.
+- Switching a visual shell must not silently claim to change the actual guest OS, Windows version, filesystem, or installed runtime. Explain what is being switched and what is preserved.
+- A container/workspace should retain access to selected files and mounted storage when changing a compatible shell. Preserve task state and avoid losing active operations; block or defer a switch safely when an operation cannot survive it.
+- Support touch-first navigation and desktop interaction: mouse/pointer, keyboard, context menus, drag/drop, multi-pane browsing, and resizable panels where supported.
+- Provide a clear container creation flow: purpose/template, genuinely available guest/runtime profile, interface profile, storage mounts/permissions, resource limits, and optional tools.
+
+### OS and version breadth
+- Investigate practically relevant Windows compatibility targets, including legacy versions when an application requires them and modern Windows targets. Do not assume every Windows release can run as a full guest OS on Android.
+- Investigate Linux userspaces/distributions and desktop shells as first-class file-processing and compatibility environments. Lightweight/headless environments may be better for extraction and CLI tools; full desktops are for GUI software and browsing.
+- Consider other operating systems only when they provide a concrete supported file-access, inspection, extraction, or runtime benefit. Do not promise arbitrary macOS, BSD, ChromeOS, or other OS virtualization on Android ARM64 without a viable lawful backend and device validation.
+- The goal is broad access to files and formats, not collecting OS logos or cosmetic version selectors. Where an Android-native engine can parse a format directly, prefer it over booting a guest OS solely for that operation.
+
+### Technical architecture and capability truth
+- Model ContainerProfile, GuestEnvironment, ShellProfile, ToolchainProfile, mounted storage, resource limits, compatibility constraints, and capability declarations independently.
+- A profile can be marked available only after its backend, architecture support, licensing, install lifecycle, storage integration, and device performance have been verified.
+- Use explicit states such as planned, installable, installed, running, and device-validated. A UI skin is not an OS installation; Wine is not Windows; a Linux userspace is not a full Linux VM; a compatibility profile is not proof that arbitrary Windows software works.
+- Prefer reusable backends and isolated per-container configurations. Do not bundle proprietary OS images or redistribute copyrighted OS files. Users must supply licensed OS images/installers where required.
+- Research established Android-compatible components and architectures (Wine-based environments, Box64/FEX where appropriate, Linux userspace/container approaches, and Android-native parsers) with license and ARM64 audits before integration. Desktop Proton or x86 Linux binaries are not assumed to be drop-in Android ARM64 solutions.
+- For file viewing, support safe preview/inspection through native handlers where possible. Treat untrusted documents, executables, archives, scripts, and media as hostile: sandbox execution, restrict permissions/network, enforce resource limits, and never auto-run selected files.
+- Preserve the modern Windows-inspired professional design, switchable shells, responsive tablet/phone layouts, and honest capability status.
+
+### Priority guidance
+- Record the container/profile model in architecture before adding cosmetic shell selectors.
+- Do not interrupt current universal file-analysis and common-format foundations for a premature full OS virtualization project.
+- Introduce container abstractions when they help real file operations or runtime compatibility. Build a minimal real profile manager first; expand guest OS choices only as viable backends are proven.
+- Keep the owner's broad Windows-version and multi-OS ambition on the roadmap; do not silently narrow it to one Windows skin or one Wine prefix.
