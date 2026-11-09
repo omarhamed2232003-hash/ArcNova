@@ -698,7 +698,7 @@ class ZipExtractionEngineTest {
         )
         val understated = understateCentralDirectorySize(valid, "second/oversized.bin")
         try {
-            org.junit.Assert.assertThrows(CentralDirectoryZipException::class.java) {
+            org.junit.Assert.assertThrows(ZipExtractionLimitException::class.java) {
                 ZipExtractionEngine.extractCentralDirectory(
                     ByteArrayInputStream(understated),
                     destination,
