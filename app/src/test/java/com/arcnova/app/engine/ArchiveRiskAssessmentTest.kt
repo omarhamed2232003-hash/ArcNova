@@ -94,6 +94,20 @@ class ArchiveRiskAssessmentTest {
         assertEquals(RiskSeverity.CRITICAL, result.highestSeverity)
     }
 
+    @Test fun recognizesWindowsStyleHiddenPaths() {
+        val result = ArchiveRiskAssessment.assess(report(entry("folder\\\\.secret")))
+        assertNotNull(finding(result, "hidden-entry"))
+    }
+
+    @Test fun rejectsInvalidThresholds() {
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            ArchiveRiskThresholds(maxEntriesWarning = -1)
+        }
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            ArchiveRiskThresholds(maxCompressionRatioWarning = 0.0)
+        }
+    }
+
     @Test fun cleanArchiveHasNoFindings() {
         val result = ArchiveRiskAssessment.assess(report(entry("readme.txt")))
         assertTrue(result.findings.isEmpty())
