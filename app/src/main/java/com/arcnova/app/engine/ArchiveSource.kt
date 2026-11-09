@@ -20,4 +20,15 @@ data class ExtractionPolicy(
     val maxExpansionRatio: Double = 10_000.0,
     val maxPathLength: Int = 4096,
     val maxPathDepth: Int = 64
-)
+) {
+    init {
+        require(maxEntries > 0) { "maxEntries must be positive" }
+        require(maxSingleFileBytes >= 0L) { "maxSingleFileBytes must not be negative" }
+        require(maxTotalOutputBytes >= 0L) { "maxTotalOutputBytes must not be negative" }
+        require(maxExpansionRatio.isFinite() && maxExpansionRatio > 0.0) {
+            "maxExpansionRatio must be finite and greater than zero"
+        }
+        require(maxPathLength > 0) { "maxPathLength must be positive" }
+        require(maxPathDepth > 0) { "maxPathDepth must be positive" }
+    }
+}
