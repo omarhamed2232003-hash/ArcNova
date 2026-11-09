@@ -66,7 +66,7 @@ object CentralDirectoryZipBackend {
         cancellationRequested: () -> Boolean
     ) {
         if (entries.size > policy.maxEntries) {
-            throw CentralDirectoryZipException("Entry count exceeds ${policy.maxEntries}")
+            throw CentralDirectoryZipLimitException("Entry count exceeds ${policy.maxEntries}")
         }
         val seenPaths = mutableMapOf<String, Boolean>()
         var declaredTotal = 0L
@@ -185,12 +185,12 @@ class CentralDirectoryZipArchive internal constructor(
                 if (count.toLong() > Long.MAX_VALUE - copied ||
                     count.toLong() > Long.MAX_VALUE - totalCopiedBytes
                 ) {
-                    throw CentralDirectoryZipException("Actual output byte count overflow")
+                    throw CentralDirectoryZipLimitException("Actual output byte count overflow")
                 }
                 val nextEntry = copied + count
                 val nextTotal = totalCopiedBytes + count
                 if (nextEntry > policy.maxSingleFileBytes || nextTotal > policy.maxTotalOutputBytes) {
-                    throw CentralDirectoryZipException("Actual output exceeds configured limits")
+                    throw CentralDirectoryZipLimitException("Actual output exceeds configured limits")
                 }
                 output.write(buffer, 0, count)
                 crc.update(buffer, 0, count)
@@ -210,7 +210,7 @@ class CentralDirectoryZipArchive internal constructor(
         if (entry.compressedSize > 0L &&
             copied.toDouble() / entry.compressedSize.toDouble() > policy.maxExpansionRatio
         ) {
-            throw CentralDirectoryZipException("Actual expansion ratio exceeds limit: ${entry.name}")
+            throw CentralDirectoryZipLimitException("Actual expansion ratio exceeds limit: ${entry.name}")
         }
         return CentralDirectoryCopyResult(copied, crc.value)
     }
@@ -237,6 +237,7 @@ class CentralDirectoryZipArchive internal constructor(
 data class CentralDirectoryCopyResult(val bytesCopied: Long, val crc32: Long)
 
 open class CentralDirectoryZipException(message: String) : IOException(message)
+class CentralDirectoryZipLimitException(message: String) : CentralDirectoryZipException(message)
 class CentralDirectoryZipUnsafePathException(val entryName: String) :
     CentralDirectoryZipException("Unsafe ZIP entry path: $entryName")
 class CentralDirectoryZipCancelledException :
