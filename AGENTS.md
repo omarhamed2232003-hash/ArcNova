@@ -280,3 +280,15 @@ The intended experience is not a pile of unrelated tools. It is a unified worksp
 - Benchmark real workflows and target-device performance, not marketing feature counts. Measure throughput, memory, storage overhead, battery/thermal behavior, cancellation latency, and correctness on representative files.
 - Keep the separate future game-specific GitHub project independent. It is not part of ArcNova's current scope; later integration may use documented interfaces only if the owner chooses.
 - Maintain an explicit distinction between researched, planned, implemented, CI-tested, device-tested, and end-to-end validated capabilities.
+
+
+## 14. Professional visual identity and app artwork — owner-confirmed requirement (2026-11-09)
+
+The owner explicitly asked that a professional image/design for the application not be forgotten. Treat brand identity and visual assets as a required product deliverable, not optional decoration.
+
+- After the final product name is selected, create an original, professional logo/wordmark and a distinctive Android launcher icon. Do not lock final artwork to the temporary ArcNova name if renaming is still under consideration.
+- Create a polished app promotional/hero artwork suitable for a store listing or project presentation, with a visual language consistent with the in-app premium UI.
+- Define a coherent palette, typography, icon style, light/dark variants, and asset sizing/export rules. Ensure the icon remains legible at small launcher sizes and works on varied Android icon masks.
+- Keep all assets original; do not imitate another product's logo, brand, or proprietary artwork.
+- Use the same identity consistently across the Android app, GitHub README/screenshots, and future promotional materials.
+- Final image generation and asset integration should happen after the product name/brand direction is settled, while the requirement remains on the active roadmap.
