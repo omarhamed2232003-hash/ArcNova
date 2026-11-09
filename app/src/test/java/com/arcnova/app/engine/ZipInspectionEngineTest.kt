@@ -68,6 +68,56 @@ class ZipInspectionEngineTest {
         } catch (_: ZipInspectionCancelledException) { }
     }
 
+    @Test fun centralDirectoryInspectionValidatesAndReportsPayloads() {
+        val cache = createTempDir(prefix = "arcnova-inspect-")
+        val report = ZipInspectionEngine.inspectCentralDirectory(
+            input = ByteArrayInputStream(archive(
+                "docs/readme.txt" to "hello".toByteArray(),
+                "empty.bin" to byteArrayOf()
+            )),
+            cacheDirectory = cache,
+            maxArchiveBytes = 4096
+        )
+        assertEquals(2, report.fileCount)
+        assertEquals(5L, report.totalUncompressedBytes)
+        assertEquals(5L, report.entries.first { it.name == "docs/readme.txt" }.actualSizeBytes)
+        assertTrue(cache.listFiles().orEmpty().isEmpty())
+        cache.deleteRecursively()
+    }
+
+    @Test fun centralDirectoryInspectionRejectsUnsafePathsBeforeReporting() {
+        val cache = createTempDir(prefix = "arcnova-inspect-")
+        try {
+            ZipInspectionEngine.inspectCentralDirectory(
+                input = ByteArrayInputStream(archive("../outside.txt" to byteArrayOf(1))),
+                cacheDirectory = cache,
+                maxArchiveBytes = 4096
+            )
+            fail("Expected unsafe path rejection")
+        } catch (_: ZipInspectionLimitException) {
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test fun centralDirectoryInspectionHonorsCancellationAndCleansSpool() {
+        val cache = createTempDir(prefix = "arcnova-inspect-")
+        try {
+            ZipInspectionEngine.inspectCentralDirectory(
+                input = ByteArrayInputStream(archive("one.txt" to byteArrayOf(1))),
+                cacheDirectory = cache,
+                maxArchiveBytes = 4096,
+                cancellationRequested = { true }
+            )
+            fail("Expected cancellation")
+        } catch (_: ZipInspectionCancelledException) {
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
     @Test fun doesNotCloseCallerInput() {
         var closed = false
         val source = object : ByteArrayInputStream(archive("one" to byteArrayOf(1))) {
