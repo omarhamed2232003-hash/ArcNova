@@ -23,9 +23,11 @@ import com.arcnova.app.engine.ZipExtractionEngine
 import com.arcnova.app.engine.ZipInspectionEngine
 import com.arcnova.app.engine.ZipExtractionProgress
 import com.arcnova.app.engine.ZipExtractionCancelledException
+import com.arcnova.app.engine.TreeDocumentStore
+import com.arcnova.app.engine.TreeCopyCancelledException
+import com.arcnova.app.engine.TransactionalTreeCopy
+import com.arcnova.app.engine.TreeCopyResult
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -225,13 +227,13 @@ class MainActivity : Activity() {
                 if (cancelRequested.get()) throw InterruptedException("Extraction cancelled")
                 val copied = copyDirectoryToTree(staging, tree)
                 mainHandler.post {
-                    statusLabel.text = "Done: ${result.filesExtracted} files, ${formatBytes(result.bytesWritten)} extracted. Copied $copied items."
+                    statusLabel.text = "Done: ${result.filesExtracted} files, ${formatBytes(result.bytesWritten)} extracted. Copied ${copied.filesCopied} files and ${copied.directoriesCreated} folders."
                     setBusy(false)
                 }
             } catch (error: Exception) {
                 mainHandler.post {
                     statusLabel.text = when (error) {
-                        is InterruptedException, is ZipExtractionCancelledException -> "Extraction cancelled."
+                        is InterruptedException, is ZipExtractionCancelledException, is TreeCopyCancelledException -> "Extraction cancelled."
                         else -> "Extraction failed: ${error.message ?: error.javaClass.simpleName}"
                     }
                     setBusy(false)
@@ -248,29 +250,62 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun copyDirectoryToTree(source: File, treeUri: Uri): Int {
+    private fun copyDirectoryToTree(source: File, treeUri: Uri): TreeCopyResult {
         val rootId = DocumentsContract.getTreeDocumentId(treeUri)
-        val rootUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, rootId)
-        return copyChildren(source, rootUri)
-    }
-
-    private fun copyChildren(sourceDir: File, parentUri: Uri): Int {
-        var copied = 0
-        sourceDir.listFiles()?.forEach { child ->
-            if (cancelRequested.get()) throw InterruptedException("Copy cancelled")
-            val mime = if (child.isDirectory) "vnd.android.document/directory" else "application/octet-stream"
-            val created = DocumentsContract.createDocument(contentResolver, parentUri, mime, child.name)
-                ?: throw IllegalStateException("Cannot create destination item: ${child.name}")
-            if (child.isDirectory) {
-                copied += copyChildren(child, created)
-            } else {
-                contentResolver.openOutputStream(created, "w")?.use { output ->
-                    FileInputStream(child).use { input -> input.copyTo(output, 64 * 1024) }
-                } ?: throw IllegalStateException("Cannot write destination file: ${child.name}")
-                copied++
+        val store = object : TreeDocumentStore {
+            override fun childNames(parentDocumentId: String): Set<String> {
+                val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocumentId)
+                val projection = arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                val names = linkedSetOf<String>()
+                val cursor = contentResolver.query(childrenUri, projection, null, null, null)
+                    ?: throw IllegalStateException("Cannot list destination folder contents")
+                cursor.use {
+                    val nameIndex = it.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                    if (nameIndex < 0) throw IllegalStateException("Destination provider did not return item names")
+                    while (it.moveToNext()) {
+                        if (!it.isNull(nameIndex)) names.add(it.getString(nameIndex))
+                    }
+                }
+                return names
             }
+
+            override fun createDirectory(parentDocumentId: String, name: String): String {
+                val parentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, parentDocumentId)
+                val created = DocumentsContract.createDocument(
+                    contentResolver, parentUri, DocumentsContract.Document.MIME_TYPE_DIR, name
+                ) ?: throw IllegalStateException("Cannot create destination folder: $name")
+                return DocumentsContract.getDocumentId(created)
+            }
+
+            override fun createFile(parentDocumentId: String, name: String, mimeType: String): String {
+                val parentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, parentDocumentId)
+                val created = DocumentsContract.createDocument(contentResolver, parentUri, mimeType, name)
+                    ?: throw IllegalStateException("Cannot create destination file: $name")
+                return DocumentsContract.getDocumentId(created)
+            }
+
+            override fun openOutput(documentId: String) =
+                contentResolver.openOutputStream(
+                    DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId), "w"
+                ) ?: throw IllegalStateException("Cannot open destination item for writing")
+
+            override fun delete(documentId: String): Boolean =
+                DocumentsContract.deleteDocument(
+                    contentResolver, DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
+                )
         }
-        return copied
+
+        return TransactionalTreeCopy.copy(
+            source,
+            rootId,
+            store,
+            cancellationRequested = { cancelRequested.get() },
+            onProgress = { progress ->
+                mainHandler.post {
+                    statusLabel.text = "Copying: ${progress.currentPath}\nFiles: ${progress.filesCopied} • ${formatBytes(progress.bytesCopied)}"
+                }
+            }
+        )
     }
 
     private fun setBusy(busy: Boolean) {
