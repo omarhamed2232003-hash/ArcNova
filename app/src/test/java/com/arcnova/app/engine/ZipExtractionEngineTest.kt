@@ -479,4 +479,134 @@ class ZipExtractionEngineTest {
         }
     }
 
+
+    private fun corruptCentralDirectoryCrc(bytes: ByteArray, entryName: String): ByteArray {
+        val corrupted = bytes.copyOf()
+        fun u16(offset: Int): Int =
+            (corrupted[offset].toInt() and 0xff) or
+                ((corrupted[offset + 1].toInt() and 0xff) shl 8)
+        fun u32(offset: Int): Long =
+            (corrupted[offset].toLong() and 0xff) or
+                ((corrupted[offset + 1].toLong() and 0xff) shl 8) or
+                ((corrupted[offset + 2].toLong() and 0xff) shl 16) or
+                ((corrupted[offset + 3].toLong() and 0xff) shl 24)
+        var offset = 0
+        while (offset <= corrupted.size - 46) {
+            if (u32(offset) == 0x02014b50L) {
+                val nameLength = u16(offset + 28)
+                val extraLength = u16(offset + 30)
+                val commentLength = u16(offset + 32)
+                val name = String(corrupted, offset + 46, nameLength, Charsets.UTF_8)
+                if (name == entryName) {
+                    corrupted[offset + 16] = (corrupted[offset + 16].toInt() xor 1).toByte()
+                    return corrupted
+                }
+                offset += 46 + nameLength + extraLength + commentLength
+            } else {
+                offset++
+            }
+        }
+        throw AssertionError("Central Directory entry not found: $entryName")
+    }
+
+    @Test fun centralDirectoryExtractionUsesTransactionalWriterAndCleansSpool() {
+        val destination = tempDir()
+        val cache = tempDir()
+        try {
+            val result = ZipExtractionEngine.extractCentralDirectory(
+                ByteArrayInputStream(archive("folder/hello.txt" to "ArcNova".toByteArray())),
+                destination,
+                cache,
+                maxArchiveBytes = 1024 * 1024L
+            )
+            assertEquals(1, result.filesExtracted)
+            assertEquals(7L, result.bytesWritten)
+            assertEquals("ArcNova", File(destination, "folder/hello.txt").readText())
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test fun centralDirectoryCrcFailureRollsBackEarlierFilesAndPreservesExistingContent() {
+        val destination = tempDir()
+        val cache = tempDir()
+        val existing = File(destination, "existing").apply { mkdirs() }
+        File(existing, "keep.txt").writeText("preserve")
+        val valid = archive(
+            "first/complete.txt" to "remove me".toByteArray(),
+            "second/corrupt.txt" to "CRC mismatch".toByteArray()
+        )
+        val corrupted = corruptCentralDirectoryCrc(valid, "second/corrupt.txt")
+        try {
+            org.junit.Assert.assertThrows(CentralDirectoryZipCrcException::class.java) {
+                ZipExtractionEngine.extractCentralDirectory(
+                    ByteArrayInputStream(corrupted),
+                    destination,
+                    cache,
+                    maxArchiveBytes = 1024 * 1024L
+                )
+            }
+            assertFalse(File(destination, "first/complete.txt").exists())
+            assertFalse(File(destination, "second/corrupt.txt").exists())
+            assertFalse(File(destination, "first").exists())
+            assertFalse(File(destination, "second").exists())
+            assertEquals("preserve", File(existing, "keep.txt").readText())
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test fun centralDirectoryCancellationAfterFirstEntryRollsBackAndPreservesExistingContent() {
+        val destination = tempDir()
+        val cache = tempDir()
+        val existing = File(destination, "keep.txt").apply { writeText("existing") }
+        var cancel = false
+        try {
+            org.junit.Assert.assertThrows(ZipExtractionCancelledException::class.java) {
+                ZipExtractionEngine.extractCentralDirectory(
+                    ByteArrayInputStream(archive(
+                        "first.txt" to byteArrayOf(1, 2, 3),
+                        "second.txt" to byteArrayOf(4, 5, 6)
+                    )),
+                    destination,
+                    cache,
+                    maxArchiveBytes = 1024 * 1024L,
+                    cancellationRequested = { cancel },
+                    onProgress = { cancel = true }
+                )
+            }
+            assertFalse(File(destination, "first.txt").exists())
+            assertFalse(File(destination, "second.txt").exists())
+            assertEquals("existing", existing.readText())
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test fun centralDirectoryPreflightFailureDoesNotCreateDestinationFiles() {
+        val destination = tempDir()
+        val cache = tempDir()
+        try {
+            org.junit.Assert.assertThrows(CentralDirectoryZipUnsafePathException::class.java) {
+                ZipExtractionEngine.extractCentralDirectory(
+                    ByteArrayInputStream(archive("../escape.txt" to byteArrayOf(1))),
+                    destination,
+                    cache,
+                    maxArchiveBytes = 1024 * 1024L
+                )
+            }
+            assertTrue(destination.listFiles().orEmpty().isEmpty())
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+            cache.deleteRecursively()
+        }
+    }
+
 }
