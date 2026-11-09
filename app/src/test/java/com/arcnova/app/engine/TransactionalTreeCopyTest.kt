@@ -21,6 +21,7 @@ class TransactionalTreeCopyTest {
         val nodes = linkedMapOf("root" to Node("root", "", null, true))
         var failCreateName: String? = null
         var failOpenName: String? = null
+        var failDeleteName: String? = null
         private var nextId = 0
 
         override fun childNames(parentDocumentId: String): Set<String> =
@@ -51,6 +52,8 @@ class TransactionalTreeCopyTest {
         }
 
         override fun delete(documentId: String): Boolean {
+            val node = nodes[documentId] ?: return false
+            if (node.name == failDeleteName) return false
             if (nodes.values.any { it.parentId == documentId }) return false
             return nodes.remove(documentId) != null
         }
@@ -165,6 +168,27 @@ class TransactionalTreeCopyTest {
             }
 
             assertTrue(store.paths().isEmpty())
+        } finally {
+            source.deleteRecursively()
+        }
+    }
+
+    @Test fun reportsWhenProviderRefusesRollbackDeletion() {
+        val source = tempDir()
+        val store = FakeTreeStore()
+        store.failDeleteName = "created.txt"
+        try {
+            File(source, "created.txt").writeText("payload")
+            File(source, "z-fail.txt").writeText("trigger")
+            store.failCreateName = "z-fail.txt"
+
+            val error = org.junit.Assert.assertThrows(TreeCopyRollbackException::class.java) {
+                TransactionalTreeCopy.copy(source, "root", store)
+            }
+
+            assertTrue(error.message.orEmpty().contains("rollback was incomplete"))
+            assertTrue(error.suppressed.isNotEmpty())
+            assertTrue(store.paths().contains("created.txt"))
         } finally {
             source.deleteRecursively()
         }
