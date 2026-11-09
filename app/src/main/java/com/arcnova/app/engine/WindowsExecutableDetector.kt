@@ -24,9 +24,9 @@ object WindowsExecutableDetector {
         if (prefix.size < 0x40) return Inspection(Result.MZ_HEADER_ONLY)
 
         val peOffset = u32(prefix, 0x3c) ?: return Inspection(Result.MZ_HEADER_ONLY)
-        if (peOffset == 0) return Inspection(Result.MZ_HEADER_ONLY)
-        if (peOffset < 0x40) return Inspection(Result.INVALID_PE_OFFSET)
-        if (peOffset > prefix.size - 24) return Inspection(Result.MZ_HEADER_ONLY)
+        if (peOffset == 0L) return Inspection(Result.MZ_HEADER_ONLY)
+        if (peOffset < 0x40L) return Inspection(Result.INVALID_PE_OFFSET)
+        if (peOffset > prefix.size - 24L) return Inspection(Result.MZ_HEADER_ONLY)
         val p = peOffset.toInt()
         if (u8(prefix, p) != 0x50 || u8(prefix, p + 1) != 0x45 ||
             u8(prefix, p + 2) != 0 || u8(prefix, p + 3) != 0) {
