@@ -184,7 +184,7 @@ class TransactionalTreeCopyTest {
                 )
             }
 
-            assertFalse(store.paths().isNotEmpty())
+            assertTrue(store.paths().isEmpty())
         } finally {
             source.deleteRecursively()
         }
