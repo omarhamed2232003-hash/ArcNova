@@ -124,7 +124,7 @@ object TransactionalTreeCopy {
 
     private fun validateName(name: String) {
         if (name.isBlank() || name == "." || name == ".." ||
-            name.contains('/') || name.contains('\\\\') || name.indexOf(0.toChar()) >= 0
+            name.contains('/') || name.contains(92.toChar()) || name.indexOf(0.toChar()) >= 0
         ) {
             throw TreeCopyException("Invalid destination item name")
         }
