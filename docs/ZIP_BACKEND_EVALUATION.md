@@ -1,10 +1,10 @@
 # ZIP backend evaluation — Android / ARM64
 
-**Status:** research decision; no dependency has been added and no backend has been marked implemented.
+**Status (2026-11-09):** Commons Compress 1.28.0 is present as a temporary evaluation dependency. The Central-Directory `ZipFile` spike is implemented and CI-tested; it is **not** wired into production extraction and is not yet an ArcNova-supported extraction backend.
 
 ## Decision summary
 
-Use **Apache Commons Compress as the preferred general archive foundation**, subject to a small Android integration spike and adversarial tests. For ZIP extraction specifically, prefer its seekable `ZipFile` API over any streaming local-header reader. Keep **Zip4j as a credible specialist alternative** if password-protected ZIP support becomes an immediate requirement or if its Android behavior proves materially better in the spike.
+Use **Apache Commons Compress as the preferred general archive foundation**, subject to the remaining Android integration, safety-policy adapter, and adversarial tests. For ZIP extraction specifically, prefer its seekable `ZipFile` API over any streaming local-header reader. Keep **Zip4j as a credible specialist alternative** if password-protected ZIP support becomes an immediate requirement or if its Android behavior proves materially better in a future focused evaluation.
 
 Do not integrate both libraries by default. Avoid adding dependencies until the selected API passes the same ArcNova safety and rollback tests.
 
@@ -55,4 +55,6 @@ ZIP has local file records followed by a Central Directory at the end. A stream-
 
 ## Current recommendation
 
-**Preferred next spike: Commons Compress 1.28.0 `ZipFile`.** It best aligns with ArcNova's multi-format roadmap and has a documented Central-Directory-first API. Zip4j remains the fallback/specialist candidate for encrypted and split ZIP workflows. This is a research recommendation only; current ArcNova ZIP implementation remains the existing bounded `ZipInputStream` engine until a replacement passes the full regression suite.
+**Spike result:** Commons Compress 1.28.0 `ZipFile` successfully passed CI tests for Central Directory enumeration, rejection when the Central Directory is removed, ignoring orphan local records, preserving duplicate central-directory names for policy rejection, exposing CRC metadata without validating the payload CRC automatically, and ZIP64 reading. The latest verified run is [Run #110](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42661386820), success on commit `09ae258a2528a71e9a38045fd351dc6781452673`.
+
+**Next engineering step:** design a bounded SAF-to-private-cache spool and a narrow adapter that enumerates all Central Directory entries, rejects duplicate normalized output paths before writing, validates entry metadata/limits, computes CRC32 while streaming, and feeds the existing transactional writer. The current production implementation remains `ZipInputStream`; do not replace it until the complete regression suite passes. Zip4j remains the specialist candidate for encrypted/split ZIP workflows.
