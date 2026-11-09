@@ -93,7 +93,7 @@ object ZipExtractionEngine {
                 try {
                     FileOutputStream(output, false).use { out ->
                         while (true) {
-                            checkCancelled(cancellationRequested, totalBytes + entryBytes)
+                            checkCancelled(cancellationRequested, safeAdd(totalBytes, entryBytes))
                             val count = zip.read(buffer)
                             if (count < 0) break
                             if (count == 0) continue
