@@ -4,8 +4,8 @@
 |---|---|
 | Android document picker | Scaffolded |
 | Split-part detection | Not implemented |
-| SREP decoder | Not integrated; source/license/ARM64 feasibility must be verified |
-| LOLZ decoder | Not integrated; source/license/ARM64 feasibility must be verified |
+| SREP decoder | Blocked: inspected upstream source reserves all rights and requests a commercial license; no permission/redistributable license verified |
+| LOLZ decoder | Blocked: no redistributable native Android ARM64 implementation verified; known CLS plugins are proprietary |
 | FitGirl installer pipeline | Not implemented |
 | Extraction and integrity checks | Not implemented |
 

@@ -18,7 +18,7 @@ Android ARM64 implications:
 - The upstream repository's license must be confirmed from the actual source headers or an explicit license file before copying or redistributing any code. No license conclusion is made here.
 - Even a successful ARM64 compile does not prove compatibility with the exact SREP variant/configuration embedded in this FitGirl archive. A known-good, legally distributable fixture is required.
 
-Decision: investigate a clean ARM64 build in an isolated test target first. Do not vendor the source into ArcNova until license and provenance are verified.
+Decision: **do not start an ARM64 port from this source yet**. The licensing gate is currently failed/unresolved. Continue searching for an independently licensed SREP-compatible implementation or obtain permission from the rights holder. The architecture port becomes actionable only after that gate is cleared.
 
 ## LOLZ: major blocker
 
@@ -38,8 +38,8 @@ Cellar's `freearc-native` notes support for container parsing and open codecs su
 
 ## Next engineering gates
 
-1. Verify SREP source license and inspect architecture-specific code.
-2. Build a minimal SREP decoder test for Android `arm64-v8a` using the NDK; do not yet integrate it into the app.
+1. Find a SREP-compatible implementation with an explicit license permitting the intended use, or obtain written permission for the upstream source.
+2. Only after the license gate is cleared, build a minimal SREP decoder test for Android `arm64-v8a` using the NDK; do not yet integrate it into the app.
 3. Obtain a small legal SREP test fixture and compare output byte-for-byte/CRC.
 4. Identify the exact LOLZ codec variant used by the archive and investigate only lawful, redistributable implementations.
 5. Separately implement FreeArc volume parsing and split-volume discovery.
@@ -50,4 +50,5 @@ Cellar's `freearc-native` notes support for container parsing and open codecs su
 - SREP upstream: https://github.com/Intensity/srep
 - SREP upstream README: https://github.com/Intensity/srep/blob/main/README.md
 - SREP upstream Makefile: https://github.com/Intensity/srep/blob/main/Makefile
+- SREP source copyright/commercial-license notice: https://github.com/Intensity/srep/blob/main/Compression/SREP/decompress.cpp
 - Cellar research: https://github.com/joemunene-by/cellar
