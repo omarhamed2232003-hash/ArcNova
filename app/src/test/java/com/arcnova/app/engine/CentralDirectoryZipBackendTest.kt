@@ -153,4 +153,72 @@ class CentralDirectoryZipBackendTest {
             directory.deleteRecursively()
         }
     }
+
+    @Test fun rejectsFilePathUsedAsParentDirectory() {
+        val directory = tempDir()
+        val output = ByteArrayOutputStream()
+        ZipOutputStream(output).use { zip ->
+            zip.putNextEntry(ZipEntry("node"))
+            zip.write(byteArrayOf(1))
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry("node/child.txt"))
+            zip.write(byteArrayOf(2))
+            zip.closeEntry()
+        }
+        try {
+            org.junit.Assert.assertThrows(CentralDirectoryZipException::class.java) {
+                CentralDirectoryZipBackend.open(ByteArrayInputStream(output.toByteArray()), directory, 4096)
+            }
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test fun rejectsDeclaredExpansionRatioBeforePayloadCopy() {
+        val directory = tempDir()
+        try {
+            org.junit.Assert.assertThrows(CentralDirectoryZipException::class.java) {
+                CentralDirectoryZipBackend.open(
+                    ByteArrayInputStream(archive("repeat.txt", ByteArray(16 * 1024) { 65 })),
+                    directory,
+                    64 * 1024L,
+                    CentralDirectoryZipPolicy(maxExpansionRatio = 1.1)
+                )
+            }
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test fun cancellationDuringPayloadCopyLeavesCallerOutputOpen() {
+        val directory = tempDir()
+        var cancelled = false
+        val opened = CentralDirectoryZipBackend.open(
+            ByteArrayInputStream(archive("cancel.bin", ByteArray(128 * 1024) { it.toByte() })),
+            directory,
+            256 * 1024L,
+            cancellationRequested = { cancelled }
+        )
+        val output = object : ByteArrayOutputStream() {
+            var closedByBackend = false
+            override fun close() {
+                closedByBackend = true
+                super.close()
+            }
+        }
+        try {
+            cancelled = true
+            org.junit.Assert.assertThrows(CentralDirectoryZipCancelledException::class.java) {
+                opened.copyEntry(opened.entries.single(), output)
+            }
+            assertFalse(output.closedByBackend)
+        } finally {
+            opened.close()
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+            directory.deleteRecursively()
+        }
+    }
+
 }
