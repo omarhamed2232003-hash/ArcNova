@@ -172,3 +172,14 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Added validation of the returned document-tree URI before accepting it as the extraction destination.
 - This is a code-level mitigation, not proof of full SAF provider compatibility. Real-device validation on the user's OnePlus Pad 2 and testing with multiple providers (Downloads, internal storage, SD/cloud provider where available) remain required.
 - Commits: `9e80c29607ebf70b6e264107b14385aaeb08e5bf`, `6004758e5b84ad82c818835eae09e151af34f7cb`, `48b0b51ef2ab7edb444533175afcd012b3e8d311`. Awaiting CI; no APK built.
+
+
+## Owner-mandated modern-first research policy — 2026-11-10
+
+- Owner explicitly requires broad, careful technology research before **every future engineering step and every phase**, using the wider internet and existing projects—not GitHub alone.
+- The requirement is now recorded durably in `AGENTS.md` section 16. Before selecting an API, library, engine, codec, installer/runtime component, UI technology, storage approach, or build/test tool, research official documentation, upstream sources/releases, changelogs, issue trackers, security advisories, specifications/papers, package registries, and credible engineering reports as relevant.
+- Search broadly for mature reusable projects beyond GitHub. Compare credible candidates when alternatives exist; inspect exact versions/tags, maintenance/stability, Android/API/NDK/ARM64 support, performance/resource requirements, security, transitive dependencies, source provenance, and exact license obligations. Prefer the newest stable, maintained, technically suitable option—not simply the highest version number.
+- Material choices must be recorded in existing research/architecture docs with dated links, candidates, tradeoffs, decision rationale, versions, compatibility strategy, and validation still needed. Keep notes proportional; this is normal engineering, not a new phase or an excuse to stall.
+- Explicitly avoid deprecated APIs in new code when modern supported alternatives exist. Any legacy exception needs a documented technical/compatibility reason and migration path.
+- Research policy commit: `8b9a1b15b560b18f3d2415c29397a31e050215c8`. Documentation-only change; matching CI must be checked before claiming validation.
+- The SAF picker modernization is a separate code change currently awaiting CI; see the preceding SAF picker section. Do not claim the new picker code has passed CI or been physically tested until matching evidence exists.
