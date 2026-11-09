@@ -13,6 +13,7 @@ import com.arcnova.app.engine.ArchiveFormatDetector
 import com.arcnova.app.engine.ArchiveSignatureDetector
 import com.arcnova.app.engine.ArchiveSource
 import com.arcnova.app.engine.WindowsExecutableDetector
+import com.arcnova.app.engine.WindowsInstallerDetector
 
 class MainActivity : Activity() {
     private lateinit var fileLabel: TextView
@@ -64,6 +65,7 @@ class MainActivity : Activity() {
         val prefix = readPrefix(uri)
         val signature = prefix?.let(ArchiveSignatureDetector::detect)
         val executable = prefix?.let(WindowsExecutableDetector::inspect)
+        val installerKind = WindowsInstallerDetector.detect(source.displayName, prefix)
         val signatureLabel = if (signature == null) "Could not read file header" else signature.label
         val verdict = when {
             signature == null -> "Header inspection unavailable"
@@ -93,6 +95,7 @@ class MainActivity : Activity() {
             append("\nHeader signature: "); append(signatureLabel)
             append("\nArchive result: "); append(verdict)
             append("\nWindows EXE analysis: "); append(exeSummary)
+            append("\nInstaller classification (heuristic): "); append(installerKind)
             append("\nNote: header checks are preliminary, not full validation.")
             append("\nNo installer execution or extraction is connected yet.")
         }
@@ -101,7 +104,7 @@ class MainActivity : Activity() {
     private fun readPrefix(uri: Uri): ByteArray? {
         return runCatching {
             contentResolver.openInputStream(uri)?.use { input ->
-                val prefix = ByteArray(4096)
+                val prefix = ByteArray(65536)
                 var count = 0
                 while (count < prefix.size) {
                     val read = input.read(prefix, count, prefix.size - count)
