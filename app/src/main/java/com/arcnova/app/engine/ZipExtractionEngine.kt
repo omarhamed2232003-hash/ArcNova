@@ -129,6 +129,122 @@ object ZipExtractionEngine {
         }
     }
 
+
+    /**
+     * Central-Directory-first extraction path. Uses the same filesystem transaction
+     * and rollback rules as [extract], while Commons Compress validates each entry.
+     * The archive is first spooled to bounded private cache storage.
+     */
+    fun extractCentralDirectory(
+        input: InputStream,
+        destination: File,
+        cacheDirectory: File,
+        maxArchiveBytes: Long,
+        policy: ExtractionPolicy = ExtractionPolicy(),
+        cancellationRequested: () -> Boolean = { false },
+        onProgress: (ZipExtractionProgress) -> Unit = {}
+    ): ZipExtractionResult {
+        require(maxArchiveBytes > 0L) { "maxArchiveBytes must be positive" }
+        require(policy.maxEntries > 0) { "maxEntries must be positive" }
+        require(policy.maxSingleFileBytes >= 0L) { "maxSingleFileBytes must not be negative" }
+        require(policy.maxTotalOutputBytes >= 0L) { "maxTotalOutputBytes must not be negative" }
+        require(policy.maxPathLength > 0) { "maxPathLength must be positive" }
+        require(policy.maxPathDepth > 0) { "maxPathDepth must be positive" }
+        require(policy.maxExpansionRatio.isFinite() && policy.maxExpansionRatio > 0.0) {
+            "maxExpansionRatio must be finite and greater than zero"
+        }
+
+        val destinationExisted = destination.exists()
+        require(destinationExisted || destination.mkdirs()) { "Cannot create destination directory" }
+        require(destination.isDirectory) { "Destination must be a directory" }
+        val root = destination.canonicalFile
+        val createdFiles = mutableListOf<File>()
+        val createdDirectories = mutableListOf<File>()
+        var entriesProcessed = 0
+        var filesExtracted = 0
+        var directoriesCreated = 0
+        var totalBytes = 0L
+
+        val backendPolicy = CentralDirectoryZipPolicy(
+            maxEntries = policy.maxEntries,
+            maxSingleFileBytes = policy.maxSingleFileBytes,
+            maxTotalOutputBytes = policy.maxTotalOutputBytes,
+            maxPathLength = policy.maxPathLength,
+            maxPathDepth = policy.maxPathDepth,
+            maxExpansionRatio = policy.maxExpansionRatio
+        )
+
+        var archive: CentralDirectoryZipArchive? = null
+        try {
+            checkCancelled(cancellationRequested, totalBytes)
+            archive = CentralDirectoryZipBackend.open(
+                input = input,
+                cacheDirectory = cacheDirectory,
+                maxArchiveBytes = maxArchiveBytes,
+                policy = backendPolicy,
+                cancellationRequested = cancellationRequested
+            )
+
+            for (entry in archive.entries) {
+                checkCancelled(cancellationRequested, totalBytes)
+                entriesProcessed++
+                val relative = sanitizeEntryName(entry.name, policy)
+                val output = File(root, relative).canonicalFile
+                if (output != root && !output.path.startsWith(root.path + File.separator)) {
+                    throw UnsafeArchivePathException(entry.name)
+                }
+
+                if (entry.isDirectory) {
+                    ensureDirectory(output, root, createdDirectories, totalBytes)
+                    directoriesCreated++
+                    onProgress(
+                        ZipExtractionProgress(
+                            entriesProcessed, filesExtracted, directoriesCreated, totalBytes, relative
+                        )
+                    )
+                    continue
+                }
+
+                val parent = output.parentFile ?: throw UnsafeArchivePathException(entry.name)
+                ensureDirectory(parent, root, createdDirectories, totalBytes)
+                if (output.exists() || !output.createNewFile()) {
+                    throw ZipExtractionException("Refusing to overwrite: $relative", totalBytes)
+                }
+                createdFiles.add(output)
+
+                val copied = FileOutputStream(output, false).use { out ->
+                    archive.copyEntry(entry, out)
+                }
+                totalBytes = safeAdd(totalBytes, copied.bytesCopied)
+                filesExtracted++
+                onProgress(
+                    ZipExtractionProgress(
+                        entriesProcessed, filesExtracted, directoriesCreated, totalBytes, relative
+                    )
+                )
+            }
+
+            // Close the backend before committing success, so temp-file cleanup failures roll back too.
+            archive.close()
+            archive = null
+            return ZipExtractionResult(
+                entriesProcessed, filesExtracted, directoriesCreated, totalBytes, root
+            )
+        } catch (error: Exception) {
+            rollback(createdFiles, createdDirectories, if (destinationExisted) null else root, error)
+            throw error
+        } finally {
+            archive?.let { opened ->
+                try {
+                    opened.close()
+                } catch (closeError: Exception) {
+                    // A primary extraction error is already propagated. Preserve cleanup diagnostics
+                    // on the exception when possible; successful close is handled before return above.
+                }
+            }
+        }
+    }
+
     private fun ensureDirectory(
         directory: File,
         root: File,
