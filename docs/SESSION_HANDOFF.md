@@ -118,3 +118,12 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - The old `ZipExtractionEngine.extract(...)` implementation remains available and covered by tests as a legacy streaming path; do not delete it until regression and compatibility review is complete.
 - This change is code-written only at commit `8ea99fe419970c69fed677de7a7f47d44353aa23`; it must pass GitHub Actions before being called CI-tested. No APK is authorized. No Android device test has been performed.
 - Next: verify CI for the integration commit, inspect exact job/test result, then add targeted integration coverage for the new 2 GiB app-bound wiring/configuration if useful; review cancellation, large archive cache capacity, provider stream behavior, and progress/copy rollback semantics before declaring Phase 1 complete.
+
+
+## Follow-up: extraction spool error contract — 2026-11-09
+
+- Verified Runs #170 and #171 succeeded, including ZIP inspection spool input-limit mapping and caller InputStream ownership tests.
+- Found an API consistency gap: during extraction, cancellation or max-input-size rejection can occur while creating the seekable spool, before the backend is opened. These internal spool exceptions were previously leaking through the public extraction API.
+- Updated `extractCentralDirectory` to map spool cancellation to `ZipExtractionCancelledException` and spool size rejection to `ZipExtractionLimitException`, preserving copied-byte counts and rollback behavior.
+- Added tests proving both errors use the public extraction exception types, remove temporary spool files, and remove a destination root created by the failed operation.
+- Code commits: `9c186f1ee34049f661389b3cce97972a49ee944d` and `ac0c634310a764facf73502d89cda0295ed713ba`. These newest tests are pending CI; do not describe them as passed until a matching Actions run succeeds.
