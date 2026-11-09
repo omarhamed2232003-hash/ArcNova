@@ -118,6 +118,41 @@ class ZipInspectionEngineTest {
         }
     }
 
+    @Test fun centralDirectoryInspectionMapsArchiveInputLimitAndCleansSpool() {
+        val cache = createTempDir(prefix = "arcnova-inspect-limit-")
+        try {
+            ZipInspectionEngine.inspectCentralDirectory(
+                input = ByteArrayInputStream(archive("large-enough.txt" to ByteArray(128))),
+                cacheDirectory = cache,
+                maxArchiveBytes = 16
+            )
+            fail("Expected archive input limit")
+        } catch (_: ZipInspectionLimitException) {
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test fun centralDirectoryInspectionDoesNotCloseCallerInput() {
+        val cache = createTempDir(prefix = "arcnova-inspect-owner-")
+        var closed = false
+        val source = object : ByteArrayInputStream(archive("one.txt" to byteArrayOf(1))) {
+            override fun close() { closed = true; super.close() }
+        }
+        try {
+            ZipInspectionEngine.inspectCentralDirectory(
+                input = source,
+                cacheDirectory = cache,
+                maxArchiveBytes = 4096
+            )
+            assertFalse(closed)
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
     @Test fun doesNotCloseCallerInput() {
         var closed = false
         val source = object : ByteArrayInputStream(archive("one" to byteArrayOf(1))) {
