@@ -52,3 +52,41 @@ Cellar's `freearc-native` notes support for container parsing and open codecs su
 - SREP upstream Makefile: https://github.com/Intensity/srep/blob/main/Makefile
 - SREP source copyright/commercial-license notice: https://github.com/Intensity/srep/blob/main/Compression/SREP/decompress.cpp
 - Cellar research: https://github.com/joemunene-by/cellar
+
+## Additional implementation candidates reviewed
+
+### PArc: SREP exists, but it is not a drop-in FreeArc reader
+
+Repository: https://github.com/YadeWira/PArc
+
+Observed facts from its current README and repository metadata:
+- PArc is a Free Pascal archiver targeting Windows x86/x64 and Linux x64; Android ARM64 is not listed as a supported target.
+- It implements an SREP codec among several codecs, including chains such as `srep+lzma`.
+- **PArc does not read or write FreeArc `.arc` files.** Its native `.parc` container is a separate format; the README points to a companion FreeArc-ex project for `.arc` support.
+- The repository declares GPL-2.0. Its README also attributes codec ports to FreeArc 0.67 sources and says original notices are preserved in `reference/`.
+
+Decision:
+- This is valuable evidence that an SREP implementation can exist in a Pascal codebase, but it does not solve FitGirl FreeArc container parsing or Android ARM64 support.
+- Do not copy or port its implementation into ArcNova until we review the exact source-file notices and dependency provenance, decide whether GPL-2.0 is compatible with ArcNova's distribution goals, and verify all relevant rights. No code has been copied.
+
+### libarchive-android: practical baseline for common formats
+
+Project: https://github.com/zhanghai/libarchive-android
+
+Observed facts:
+- The Android package provides libarchive through Android NDK and Java bindings.
+- Its published metadata identifies Apache-2.0; the repository README describes bundled zlib, bzip2, lzma, lz4, zstd and mbedcrypto support.
+- The upstream libarchive format list includes common containers such as tar, ZIP, 7-Zip, RAR/RAR5, CAB, ISO9660, LHA/LZH and others.
+- This is a candidate baseline for conventional archive support, not a FreeArc `.arc` or FitGirl SREP/LOLZ solution.
+
+Decision:
+- Evaluate it as an independently licensed common-format backend, with an explicit ABI/version check for arm64-v8a and streaming behavior before integration.
+- Keep ArcNova's own safety policy, extraction path validation, cancellation and output limits around any third-party backend. Library support does not automatically provide all application-level protections.
+
+## Updated direction
+
+ArcNova should pursue two complementary tracks:
+1. **Broad everyday archive support:** evaluate libarchive-android as a baseline for standard formats.
+2. **Specialized codec/container research:** continue independent FreeArc container and SREP/LOLZ work, without assuming PArc is compatible or bundling proprietary CLS components.
+
+The PArc review narrows the search: an SREP codec alone is insufficient; the target must also match the FreeArc container/block layout and run lawfully on Android ARM64.
