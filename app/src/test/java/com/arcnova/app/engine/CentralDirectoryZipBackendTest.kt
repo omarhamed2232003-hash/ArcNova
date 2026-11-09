@@ -247,4 +247,65 @@ class CentralDirectoryZipBackendTest {
         }
     }
 
+
+    @Test fun enforcesActualTotalOutputLimitWhileStreamingPayload() {
+        val directory = tempDir()
+        val payload = ByteArray(32) { (it + 1).toByte() }
+        val bytes = archive("actual.bin", payload)
+        // Lie in the Central Directory: declare one uncompressed byte, while the
+        // compressed stream still expands to the complete payload.
+        val central = centralDirectoryOffset(bytes)
+        writeLittleEndianInt(bytes, central + 24, 1)
+        try {
+            val opened = CentralDirectoryZipBackend.open(
+                ByteArrayInputStream(bytes),
+                directory,
+                4096,
+                CentralDirectoryZipPolicy(maxTotalOutputBytes = 8)
+            )
+            try {
+                val output = ByteArrayOutputStream()
+                org.junit.Assert.assertThrows(CentralDirectoryZipException::class.java) {
+                    opened.copyEntry(opened.entries.single(), output)
+                }
+                assertTrue("The actual stream should stop at the configured cap", output.size() <= 8)
+            } finally {
+                opened.close()
+            }
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test fun outputWriteFailureDoesNotCloseCallerStreamAndArchiveCanStillBeClosed() {
+        val directory = tempDir()
+        val opened = CentralDirectoryZipBackend.open(
+            ByteArrayInputStream(archive("write-fail.bin", ByteArray(64) { it.toByte() })),
+            directory,
+            4096
+        )
+        var closeCalled = false
+        val failingOutput = object : java.io.OutputStream() {
+            private var written = 0
+            override fun write(value: Int) {
+                if (written++ >= 7) throw java.io.IOException("simulated destination failure")
+            }
+            override fun write(bytes: ByteArray, offset: Int, length: Int) {
+                repeat(length) { write(bytes[offset + it].toInt()) }
+            }
+            override fun close() { closeCalled = true }
+        }
+        try {
+            org.junit.Assert.assertThrows(java.io.IOException::class.java) {
+                opened.copyEntry(opened.entries.single(), failingOutput)
+            }
+            assertFalse("Backend must not close caller-owned output", closeCalled)
+        } finally {
+            opened.close()
+        }
+        assertTrue(directory.listFiles().orEmpty().isEmpty())
+        directory.deleteRecursively()
+    }
+
 }
