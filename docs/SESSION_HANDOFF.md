@@ -162,3 +162,13 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Added a missing provider lifecycle case: output stream close fails after a payload has been written. The test asserts the newly created SAF document is rolled back and pre-existing destination content remains untouched.
 - Test commit: `fa11c95ebf3cae0dfb32afb3dcb12c8fb2571223`; awaiting matching CI. This remains a fake-provider unit test, not a real Android SAF/device validation.
 - No APK built and no main-branch changes.
+
+
+## SAF picker responsiveness and result validation — 2026-11-09
+
+- User reported intermittent file selection/read issues and trouble choosing an extraction destination through Android's "Use this folder" flow on the preview APK.
+- Code review found `MainActivity.onActivityResult` performed both provider metadata query (`OpenableColumns`) and a read of up to 64 KiB for signature detection synchronously on the UI thread. SAF providers can be slow or cloud-backed; blocking the UI during these operations is a concrete responsiveness and timeout risk.
+- Moved metadata lookup, open/read probe, and signature detection to the existing single-thread worker. The UI now shows a checking state, enables extraction/inspection only after a successful read probe and format decision, and reports provider access errors explicitly.
+- Added validation of the returned document-tree URI before accepting it as the extraction destination.
+- This is a code-level mitigation, not proof of full SAF provider compatibility. Real-device validation on the user's OnePlus Pad 2 and testing with multiple providers (Downloads, internal storage, SD/cloud provider where available) remain required.
+- Commits: `9e80c29607ebf70b6e264107b14385aaeb08e5bf`, `6004758e5b84ad82c818835eae09e151af34f7cb`, `48b0b51ef2ab7edb444533175afcd012b3e8d311`. Awaiting CI; no APK built.
