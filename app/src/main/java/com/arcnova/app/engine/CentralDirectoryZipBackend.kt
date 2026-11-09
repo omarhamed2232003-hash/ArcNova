@@ -94,20 +94,20 @@ object CentralDirectoryZipBackend {
                 throw CentralDirectoryZipException("Directory entry has non-zero payload: ${entry.name}")
             }
             if (!entry.isDirectory && entry.size > policy.maxSingleFileBytes) {
-                throw CentralDirectoryZipException("File exceeds per-file limit: ${entry.name}")
+                throw CentralDirectoryZipLimitException("File exceeds per-file limit: ${entry.name}")
             }
             if (entry.size > Long.MAX_VALUE - declaredTotal) {
-                throw CentralDirectoryZipException("Declared output size overflow")
+                throw CentralDirectoryZipLimitException("Declared output size overflow")
             }
             declaredTotal += entry.size
             if (declaredTotal > policy.maxTotalOutputBytes) {
-                throw CentralDirectoryZipException("Declared total output exceeds configured limit")
+                throw CentralDirectoryZipLimitException("Declared total output exceeds configured limit")
             }
             if (entry.size > 0L) {
                 if (entry.compressedSize == 0L ||
                     entry.size.toDouble() / entry.compressedSize.toDouble() > policy.maxExpansionRatio
                 ) {
-                    throw CentralDirectoryZipException("Declared expansion ratio exceeds limit: ${entry.name}")
+                    throw CentralDirectoryZipLimitException("Declared expansion ratio exceeds limit: ${entry.name}")
                 }
             }
         }
@@ -127,7 +127,7 @@ object CentralDirectoryZipBackend {
             throw CentralDirectoryZipUnsafePathException(name)
         }
         if (normalized.length > policy.maxPathLength || meaningful.size > policy.maxPathDepth) {
-            throw CentralDirectoryZipException("Entry path exceeds configured length or depth: $name")
+            throw CentralDirectoryZipLimitException("Entry path exceeds configured length or depth: $name")
         }
         return meaningful.joinToString("/")
     }
