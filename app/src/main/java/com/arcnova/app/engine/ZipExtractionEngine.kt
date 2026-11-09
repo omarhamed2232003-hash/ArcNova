@@ -2,7 +2,6 @@ package com.arcnova.app.engine
 
 import java.io.BufferedInputStream
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.zip.ZipInputStream
@@ -40,8 +39,9 @@ object ZipExtractionEngine {
         var directories = 0
         val buffer = ByteArray(BUFFER_SIZE)
 
-        ZipInputStream(BufferedInputStream(input)).use { zip ->
-            while (true) {
+        // Do not close the caller-owned input stream; the caller controls its lifecycle.
+        val zip = ZipInputStream(BufferedInputStream(input))
+        while (true) {
                 checkCancelled(cancellationRequested, totalBytes)
                 val entry = zip.nextEntry ?: break
                 entries++
@@ -117,7 +117,6 @@ object ZipExtractionEngine {
                     zip.closeEntry()
                 }
             }
-        }
 
         return ZipExtractionResult(entries, files, directories, totalBytes, root)
     }
@@ -130,11 +129,9 @@ object ZipExtractionEngine {
         ) throw UnsafeArchivePathException(name)
 
         val parts = normalized.split('/')
-        if (parts.any { it == ".." || it == "." || it.isEmpty() }) {
-            val filteredTrailing = parts.dropLastWhile { it.isEmpty() }
-            if (filteredTrailing.isEmpty() || filteredTrailing.any { it == ".." || it == "." || it.isEmpty() }) {
-                throw UnsafeArchivePathException(name)
-            }
+        val meaningfulParts = parts.dropLastWhile { it.isEmpty() }
+        if (meaningfulParts.isEmpty() || meaningfulParts.any { it == ".." || it == "." || it.isEmpty() }) {
+            throw UnsafeArchivePathException(name)
         }
         val safe = parts.filter { it.isNotEmpty() }
         if (safe.isEmpty()) throw UnsafeArchivePathException(name)
