@@ -8,6 +8,9 @@ import java.util.zip.ZipOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.apache.commons.compress.archivers.zip.Zip64Mode
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
 import org.junit.Test
 
 class ZipExtractionEngineTest {
@@ -541,6 +544,34 @@ class ZipExtractionEngineTest {
             }
         }
         throw AssertionError("Central Directory entry not found: $entryName")
+    }
+
+    @Test fun centralDirectoryExtractionSupportsZip64ArchivesEndToEnd() {
+        val output = ByteArrayOutputStream()
+        ZipArchiveOutputStream(output).use { zip ->
+            zip.setUseZip64(Zip64Mode.Always)
+            val entry = ZipArchiveEntry("zip64/hello.txt")
+            zip.putArchiveEntry(entry)
+            zip.write("ZIP64 works".toByteArray())
+            zip.closeArchiveEntry()
+        }
+        val destination = tempDir()
+        val cache = tempDir()
+        try {
+            val result = ZipExtractionEngine.extractCentralDirectory(
+                ByteArrayInputStream(output.toByteArray()),
+                destination,
+                cache,
+                maxArchiveBytes = 1024 * 1024L
+            )
+            assertEquals(1, result.filesExtracted)
+            assertEquals(11L, result.bytesWritten)
+            assertEquals("ZIP64 works", File(destination, "zip64/hello.txt").readText())
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+            cache.deleteRecursively()
+        }
     }
 
     @Test fun centralDirectoryExtractionUsesTransactionalWriterAndCleansSpool() {
