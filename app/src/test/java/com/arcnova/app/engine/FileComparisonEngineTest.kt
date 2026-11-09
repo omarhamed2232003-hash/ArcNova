@@ -32,6 +32,16 @@ class FileComparisonEngineTest {
         assertFalse(result.sameContent)
     }
 
+    @Test fun treatsTwoEmptyFilesAsIdentical() {
+        val result = FileComparisonEngine.compare(
+            "empty-a", ByteArrayInputStream(byteArrayOf()),
+            "empty-b", ByteArrayInputStream(byteArrayOf())
+        )
+        assertTrue(result.sameSize)
+        assertTrue(result.sameContent)
+        assertNull(result.sameDetectedFormat)
+    }
+
     @Test fun reportsMatchingDetectedFormats() {
         val png = byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)
         val result = FileComparisonEngine.compare(
