@@ -68,14 +68,25 @@ object CentralDirectoryZipBackend {
         if (entries.size > policy.maxEntries) {
             throw CentralDirectoryZipException("Entry count exceeds ${policy.maxEntries}")
         }
-        val seenPaths = mutableSetOf<String>()
+        val seenPaths = mutableMapOf<String, Boolean>()
         var declaredTotal = 0L
         entries.forEach { entry ->
             if (cancellationRequested()) throw CentralDirectoryZipCancelledException()
             val normalized = normalizePath(entry.name, policy)
-            if (!seenPaths.add(normalized)) {
+            if (seenPaths.containsKey(normalized)) {
                 throw CentralDirectoryZipException("Duplicate normalized output path: $normalized")
             }
+            val segments = normalized.split('/')
+            for (index in 1 until segments.size) {
+                val ancestor = segments.take(index).joinToString("/")
+                if (seenPaths[ancestor] == false) {
+                    throw CentralDirectoryZipException("File path is also used as a parent directory: $ancestor")
+                }
+            }
+            if (!entry.isDirectory && seenPaths.keys.any { it.startsWith("$normalized/") }) {
+                throw CentralDirectoryZipException("File path conflicts with an existing child entry: $normalized")
+            }
+            seenPaths[normalized] = entry.isDirectory
             if (entry.size < 0L || entry.compressedSize < 0L) {
                 throw CentralDirectoryZipException("Entry has unknown or invalid size metadata: ${entry.name}")
             }
