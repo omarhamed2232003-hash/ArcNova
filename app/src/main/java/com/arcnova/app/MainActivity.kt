@@ -32,6 +32,10 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : Activity() {
+    companion object {
+        private const val MAX_ARCHIVE_INPUT_BYTES = 2L * 1024L * 1024L * 1024L
+    }
+
     private lateinit var fileLabel: TextView
     private lateinit var statusLabel: TextView
     private lateinit var chooseFolderButton: Button
@@ -218,8 +222,13 @@ class MainActivity : Activity() {
                 val input = contentResolver.openInputStream(source.uri)
                     ?: throw IllegalStateException("Cannot open selected archive")
                 val result = input.use {
-                    ZipExtractionEngine.extract(
-                        it, staging, ExtractionPolicy(),
+                    ZipExtractionEngine.extractCentralDirectory(
+                        input = it,
+                        destination = staging,
+                        cacheDirectory = cacheDir,
+                        // Bound the seekable archive spool independently from extracted-output limits.
+                        maxArchiveBytes = MAX_ARCHIVE_INPUT_BYTES,
+                        policy = ExtractionPolicy(),
                         cancellationRequested = { cancelRequested.get() },
                         onProgress = { progress -> postProgress(progress) }
                     )
