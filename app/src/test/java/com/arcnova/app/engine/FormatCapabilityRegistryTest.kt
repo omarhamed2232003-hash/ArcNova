@@ -28,6 +28,16 @@ class FormatCapabilityRegistryTest {
         assertTrue(FormatCapabilityRegistry.findByExtension("unknown").isEmpty())
     }
 
+    @Test fun extensionDetectionDoesNotImplyInspectionOrExtraction() {
+        val kgb = FormatCapabilityRegistry.findById("kgb")!!
+        assertEquals(SupportLevel.IMPLEMENTED_CI_TESTED, kgb.operationSupport[FormatOperation.DETECT])
+        assertEquals(SupportLevel.PLANNED, kgb.operationSupport[FormatOperation.INSPECT])
+        assertEquals(SupportLevel.PLANNED, kgb.operationSupport[FormatOperation.EXTRACT])
+        assertTrue(kgb.supports(FormatOperation.DETECT))
+        assertFalse(kgb.supports(FormatOperation.INSPECT))
+        assertFalse(kgb.supports(FormatOperation.EXTRACT))
+    }
+
     @Test fun plannedFormatsAreNotReportedAsAvailable() {
         val kgb = FormatCapabilityRegistry.findById("kgb")!!
         assertEquals(SupportLevel.PLANNED, kgb.operationSupport[FormatOperation.EXTRACT])
