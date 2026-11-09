@@ -3,6 +3,7 @@ package com.arcnova.app.engine
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.util.zip.ZipInputStream
 
@@ -12,6 +13,10 @@ import java.util.zip.ZipInputStream
  * Extracts into a caller-provided private directory. It rejects unsafe paths,
  * duplicate output paths, excessive entry counts, oversized files and archives
  * whose observed expansion ratio exceeds policy. It never overwrites files.
+ *
+ * The operation is transactional for filesystem objects it creates: if any
+ * entry, callback, limit check, or cancellation fails, created files and empty
+ * directories are removed while pre-existing destination content is preserved.
  */
 object ZipExtractionEngine {
     private const val BUFFER_SIZE = 64 * 1024
@@ -31,10 +36,14 @@ object ZipExtractionEngine {
         require(policy.maxExpansionRatio.isFinite() && policy.maxExpansionRatio > 0.0) {
             "maxExpansionRatio must be finite and greater than zero"
         }
-        require(destination.exists() || destination.mkdirs()) { "Cannot create destination directory" }
+
+        val destinationExisted = destination.exists()
+        require(destinationExisted || destination.mkdirs()) { "Cannot create destination directory" }
         require(destination.isDirectory) { "Destination must be a directory" }
 
         val root = destination.canonicalFile
+        val createdFiles = mutableListOf<File>()
+        val createdDirectories = mutableListOf<File>()
         var entries = 0
         var totalBytes = 0L
         var files = 0
@@ -44,7 +53,8 @@ object ZipExtractionEngine {
 
         // Do not close the caller-owned input stream; the caller controls its lifecycle.
         val zip = ZipInputStream(BufferedInputStream(input))
-        while (true) {
+        try {
+            while (true) {
                 checkCancelled(cancellationRequested, totalBytes)
                 val entry = zip.nextEntry ?: break
                 entries++
@@ -62,12 +72,7 @@ object ZipExtractionEngine {
                 }
 
                 if (entry.isDirectory) {
-                    if (!output.exists() && !output.mkdirs()) {
-                        throw ZipExtractionException("Cannot create directory: $relative", totalBytes)
-                    }
-                    if (!output.isDirectory) {
-                        throw ZipExtractionException("Directory conflicts with an existing file: $relative", totalBytes)
-                    }
+                    ensureDirectory(output, root, createdDirectories, totalBytes)
                     directories++
                     zip.closeEntry()
                     onProgress(ZipExtractionProgress(entries, files, directories, totalBytes, relative))
@@ -76,21 +81,17 @@ object ZipExtractionEngine {
 
                 val parent = output.parentFile
                     ?: throw UnsafeArchivePathException(entry.name)
-                if (!parent.exists() && !parent.mkdirs()) {
-                    throw ZipExtractionException("Cannot create parent directory for: $relative", totalBytes)
-                }
-                if (!parent.isDirectory) {
-                    throw ZipExtractionException("Parent path is not a directory: $relative", totalBytes)
-                }
-                if (output.exists()) {
+                ensureDirectory(parent, root, createdDirectories, totalBytes)
+
+                if (output.exists() || !output.createNewFile()) {
                     throw ZipExtractionException("Refusing to overwrite: $relative", totalBytes)
                 }
+                // Register immediately after exclusive creation so every later failure rolls it back.
+                createdFiles.add(output)
 
                 var entryBytes = 0L
-                var created = false
                 try {
                     FileOutputStream(output, false).use { out ->
-                        created = true
                         while (true) {
                             checkCancelled(cancellationRequested, totalBytes + entryBytes)
                             val count = zip.read(buffer)
@@ -116,20 +117,69 @@ object ZipExtractionEngine {
                     }
                     files++
                     onProgress(ZipExtractionProgress(entries, files, directories, totalBytes, relative))
-                } catch (error: Exception) {
-                    if (created) output.delete()
-                    throw error
                 } finally {
                     zip.closeEntry()
                 }
             }
 
-        return ZipExtractionResult(entries, files, directories, totalBytes, root)
+            return ZipExtractionResult(entries, files, directories, totalBytes, root)
+        } catch (error: Exception) {
+            rollback(createdFiles, createdDirectories, if (destinationExisted) null else root, error)
+            throw error
+        }
+    }
+
+    private fun ensureDirectory(
+        directory: File,
+        root: File,
+        createdDirectories: MutableList<File>,
+        bytesWritten: Long
+    ) {
+        if (directory == root) return
+        if (!directory.path.startsWith(root.path + File.separator)) {
+            throw ZipExtractionException("Directory escapes extraction destination: $directory", bytesWritten)
+        }
+        if (directory.exists()) {
+            if (!directory.isDirectory) {
+                throw ZipExtractionException("Path component is not a directory: $directory", bytesWritten)
+            }
+            return
+        }
+
+        val parent = directory.parentFile
+            ?: throw ZipExtractionException("Cannot resolve parent directory: $directory", bytesWritten)
+        ensureDirectory(parent, root, createdDirectories, bytesWritten)
+        if (directory.mkdir()) {
+            createdDirectories.add(directory)
+        } else if (!directory.isDirectory) {
+            throw ZipExtractionException("Cannot create directory: $directory", bytesWritten)
+        }
+    }
+
+    private fun rollback(
+        createdFiles: List<File>,
+        createdDirectories: List<File>,
+        createdRoot: File?,
+        originalError: Exception
+    ) {
+        createdFiles.asReversed().forEach { deleteForRollback(it, originalError) }
+        createdDirectories.asReversed().forEach { deleteForRollback(it, originalError) }
+        if (createdRoot != null) deleteForRollback(createdRoot, originalError)
+    }
+
+    private fun deleteForRollback(file: File, originalError: Exception) {
+        try {
+            if (file.exists() && !file.delete()) {
+                throw IOException("Rollback could not remove created path: $file")
+            }
+        } catch (cleanupError: Exception) {
+            originalError.addSuppressed(cleanupError)
+        }
     }
 
     private fun sanitizeEntryName(name: String, policy: ExtractionPolicy): String {
-        if (name.isBlank() || name.indexOf('\u0000') >= 0) throw UnsafeArchivePathException(name)
-        val normalized = name.replace('\\', '/')
+        if (name.isBlank() || name.indexOf('\\u0000') >= 0) throw UnsafeArchivePathException(name)
+        val normalized = name.replace('\\\\', '/')
         if (normalized.startsWith('/') || normalized.startsWith("//") ||
             Regex("^[a-zA-Z]:").containsMatchIn(normalized)
         ) throw UnsafeArchivePathException(name)
