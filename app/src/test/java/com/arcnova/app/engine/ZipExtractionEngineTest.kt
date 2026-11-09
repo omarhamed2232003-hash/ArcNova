@@ -117,6 +117,26 @@ class ZipExtractionEngineTest {
         }
     }
 
+    @Test fun acceptsArchiveAtExactEntryCountLimit() {
+        val dir = tempDir()
+        try {
+            val result = ZipExtractionEngine.extract(
+                ByteArrayInputStream(archive(
+                    "one.txt" to byteArrayOf(1),
+                    "two.txt" to byteArrayOf(2)
+                )),
+                dir,
+                ExtractionPolicy(maxEntries = 2)
+            )
+            assertEquals(2, result.entriesProcessed)
+            assertEquals(2, result.filesExtracted)
+            assertTrue(File(dir, "one.txt").exists())
+            assertTrue(File(dir, "two.txt").exists())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     @Test fun enforcesPerFileAndEntryLimits() {
         val dir = tempDir()
         try {
