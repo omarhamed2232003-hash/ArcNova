@@ -25,4 +25,26 @@ class FileAnalysisReportTest {
         val report = FileAnalysisAnalyzer.analyze("photo.jpeg", ByteArrayInputStream(jpeg))
         assertEquals(true, report.extensionMatchesSignature)
     }
+
+    @Test fun hiddenAndTrailingDotNamesHaveNoExtension() {
+        assertNull(FileAnalysisAnalyzer.analyze(".hidden", ByteArrayInputStream(byteArrayOf())).extension)
+        assertNull(FileAnalysisAnalyzer.analyze("README.", ByteArrayInputStream(byteArrayOf())).extension)
+        assertEquals("gz", FileAnalysisAnalyzer.analyze("backup.tar.gz", ByteArrayInputStream(byteArrayOf())).extension)
+    }
+
+    @Test fun zeroLengthBulkReadFallsBackWithoutLosingBytes() {
+        val source = object : ByteArrayInputStream("abc".toByteArray()) {
+            private var returnZero = true
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                if (returnZero) {
+                    returnZero = false
+                    return 0
+                }
+                return super.read(b, off, len)
+            }
+        }
+        val report = FileAnalysisAnalyzer.analyze("data.bin", source)
+        assertEquals(3L, report.sizeBytes)
+        assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", report.sha256)
+    }
 }

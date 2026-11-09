@@ -23,8 +23,11 @@ object FileAnalysisAnalyzer {
         maxHeaderBytes: Int = FileSignatureDetector.DEFAULT_MAX_HEADER_BYTES
     ): FileAnalysisReport {
         require(maxHeaderBytes > 0) { "maxHeaderBytes must be positive" }
-        val extension = displayName.substringAfterLast('.', "").lowercase()
-            .takeIf { it.isNotBlank() && it != displayName.lowercase() }
+        val extension = displayName.substringAfterLast('/').substringAfterLast('\\')
+            .let { name ->
+                val dot = name.lastIndexOf('.')
+                if (dot > 0 && dot < name.lastIndex) name.substring(dot + 1).lowercase() else null
+            }
         val digest = MessageDigest.getInstance("SHA-256")
         val header = ByteArray(maxHeaderBytes)
         var headerSize = 0
@@ -34,14 +37,24 @@ object FileAnalysisAnalyzer {
         while (true) {
             val count = input.read(buffer)
             if (count < 0) break
-            if (count == 0) continue
+            if (count == 0) {
+                // InputStream implementations should not return zero for a non-empty
+                // buffer, but a defensive single-byte read prevents a busy loop.
+                val single = input.read()
+                if (single < 0) break
+                digest.update(single.toByte())
+                if (headerSize < maxHeaderBytes) header[headerSize++] = single.toByte()
+                total = Math.addExact(total, 1L)
+                continue
+            }
+
             digest.update(buffer, 0, count)
             val toCopy = minOf(count, maxHeaderBytes - headerSize)
             if (toCopy > 0) {
                 buffer.copyInto(header, headerSize, 0, toCopy)
                 headerSize += toCopy
             }
-            total += count.toLong()
+            total = Math.addExact(total, count.toLong())
         }
 
         val signature = FileSignatureDetector.detect(header.copyOf(headerSize))
@@ -54,7 +67,9 @@ object FileAnalysisAnalyzer {
             signature = signature,
             extensionMatchesSignature = matches,
             sizeBytes = total,
-            sha256 = digest.digest().joinToString("") { "%02x".format(it) }
+            sha256 = digest.digest().joinToString("") { byte ->
+                "%02x".format(byte.toInt() and 0xff)
+            }
         )
     }
 
