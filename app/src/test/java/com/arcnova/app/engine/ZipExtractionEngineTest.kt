@@ -256,7 +256,7 @@ class ZipExtractionEngineTest {
 
     @Test fun inputReadFailureRollsBackPreviouslyCreatedOutput() {
         val dir = tempDir()
-        val payload = ByteArray(128 * 1024) { 7 }
+        val payload = ByteArray(128 * 1024).also { java.util.Random(42L).nextBytes(it) }
         val bytes = archive("nested/large.bin" to payload)
         val failingInput = object : java.io.InputStream() {
             private val delegate = ByteArrayInputStream(bytes)
