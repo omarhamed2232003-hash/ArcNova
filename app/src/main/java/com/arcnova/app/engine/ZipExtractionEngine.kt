@@ -178,8 +178,8 @@ object ZipExtractionEngine {
     }
 
     private fun sanitizeEntryName(name: String, policy: ExtractionPolicy): String {
-        if (name.isBlank() || name.indexOf('\\u0000') >= 0) throw UnsafeArchivePathException(name)
-        val normalized = name.replace('\\\\', '/')
+        if (name.isBlank() || name.indexOf(0.toChar()) >= 0) throw UnsafeArchivePathException(name)
+        val normalized = name.replace(92.toChar(), '/')
         if (normalized.startsWith('/') || normalized.startsWith("//") ||
             Regex("^[a-zA-Z]:").containsMatchIn(normalized)
         ) throw UnsafeArchivePathException(name)
