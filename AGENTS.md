@@ -4,11 +4,12 @@
 
 ## 1. Start here: mandatory first actions
 
-1. Read this file, then read `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `PRIVACY.md`, `DISCLAIMER.md`, and `THIRD_PARTY_NOTICES.md`.
-2. Inspect the current branch, latest commit, working tree (if using a local checkout), repository tree, and latest GitHub Actions results. Never assume the commit hash or project state recorded in an older conversation is still current.
-3. Inspect the actual source and tests before changing anything. Search for existing abstractions before adding duplicates.
-4. Identify what is implemented, what is only detected/planned, and what has been validated on a real Android device. Update this handoff when meaningful project state changes.
-5. Continue from the real repository state. Do not restart, rewrite, or replace the project just because this is a new chat.
+1. Read this file and `docs/SESSION_HANDOFF.md` first. The session handoff is the concise, date-stamped snapshot of the active branch, PR, latest commits/CI, completed work, unresolved issues, and exact next task. Treat it as a pointer, not as a substitute for source verification.
+2. Read `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `PRIVACY.md`, `DISCLAIMER.md`, and `THIRD_PARTY_NOTICES.md` when present; if a named file is absent, record that fact rather than inventing its contents.
+3. Re-sync GitHub: fetch `main`, the active development branch, open PRs, repository tree, latest Actions runs and job steps. Confirm the actual branch/commit before relying on any handoff snapshot. Never infer current state from chat memory or a stale commit hash.
+4. Inspect the actual source, tests, workflow, and relevant docs before changing anything. Search for existing abstractions before adding duplicates.
+5. Separate implemented, detected, planned, CI-tested, device-tested, and end-to-end validated capabilities. Update the handoff and affected status docs whenever meaningful state changes.
+6. Continue from the real repository state. Do not restart, rewrite, or replace the project just because this is a new chat.
 
 ## 2. Product mission — do not narrow the vision
 
@@ -44,7 +45,7 @@ Treat the repository as the source of truth; this section is a handoff snapshot 
 Known implementation baseline:
 - Android app scaffold; Kotlin, Android Gradle Plugin/Gradle project, Java 17, Kotlin 17, compile/target SDK 35, min SDK 26.
 - MainActivity currently offers document-picker based ZIP extraction flow: choose archive, choose SAF destination, extract, cancel, and progress reporting.
-- ZIP extraction engine has safe path validation, overwrite refusal, entry/file/total-output/expansion-ratio limits, cancellation, streaming writes, and transactional rollback of every file and directory created by the extraction when an entry, limit, cancellation, or progress callback fails. Pre-existing destination content is preserved. The later Android SAF copy from staging into the user-selected tree is still not transactional.
+- ZIP extraction engine has safe path validation, overwrite refusal, entry/file/total-output/expansion-ratio limits, cancellation, streaming writes, and transactional rollback of every file and directory created by the extraction when an entry, limit, cancellation, or progress callback fails. Pre-existing destination content is preserved.
 - SAF output stages extracted data in app cache before copying to the selected document tree. The copy is now routed through `TransactionalTreeCopy`, which tracks every SAF document it creates, checks destination-name collisions before creation, streams files with cancellation checks, guards against staged-directory cycles, and deletes created documents in reverse order if a later step fails. Existing destination items are not overwritten or deleted. If a provider refuses rollback deletion, the operation reports an explicit incomplete-rollback error with cleanup failures attached. Staging still temporarily requires extra storage.
 - Existing unit tests cover normal ZIP extraction, traversal rejection, limits, cancellation before and after completed entries, overwrite refusal, backslash traversal, caller-owned input-stream lifecycle, full ZIP rollback after later-entry/callback failures, and preservation of pre-existing destination content. `TransactionalTreeCopyTest` covers nested SAF copy, later provider-create failure rollback, existing-name collision preservation, cancellation, output-open failure, progress-callback failure, and explicit reporting when a provider refuses rollback deletion.
 - File/archive detection code includes signature/extension hints for common formats, specialist compression extensions (WinRK, KGB, UHARC, ZPAQ, DGCA, StuffIt), game packages (Unreal PAK/IoStore, Unity AssetBundles, Source VPK, XP3, RPA), and multipart naming patterns. These are filename hints unless a signature detector explicitly validates bytes.
@@ -136,7 +137,7 @@ with `setup.exe`, `fg-01.bin` through `fg-09.bin`, and optional MP/Zombies bins.
 5. **Validate:** run unit tests/build via GitHub Actions or available environment. Inspect logs on failure and fix the cause. A passing CI build must be reported as CI-only unless the app was actually tested on the target tablet.
 6. **Commit safely:** fetch fresh branch head and parent tree immediately before writing; create blobs/tree/commit, then update `main` with an expected-SHA guard. Never force-push or overwrite concurrent work. If the lease fails, re-fetch and reconcile.
 7. **Verify:** inspect the resulting commit, changed paths, and Actions run. Report commit hash, changed files, tests, CI result, and anything not tested.
-8. **Handoff:** update this file when architecture, status, next step, or important decisions change. Keep the next-step section current.
+8. **Handoff:** update `docs/SESSION_HANDOFF.md` after every meaningful work batch with verified branch/PR/commit/CI state, changed paths, tests, remaining risks, and one concrete next task. Update this file when durable architecture, owner decisions, safety rules, or workflow rules change. Keep both current.
 
 When using GitHub API tools, write operations must be sequential and use exact current SHAs. Never claim a commit, build, test, or release succeeded unless the tool result confirms it.
 
