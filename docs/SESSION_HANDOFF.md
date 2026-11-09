@@ -1,7 +1,7 @@
 # ArcNova — Current Session Handoff
 
 > **Purpose:** Fast, reliable recovery when a new AI chat/session opens. Read this after `AGENTS.md`, then re-check GitHub before acting. This is a snapshot, not an authority over live repository state.
-> **Snapshot verified:** 2026-11-09 17:24 UTC.
+> **Snapshot verified:** 2026-11-09 19:45 UTC.
 
 ## Repository and working lane
 
@@ -11,7 +11,7 @@
 - Open PR: [#1 — Make ZIP extraction and SAF destination copy transactional](https://github.com/omarhamed2232003-hash/ArcNova/pull/1)
 - PR #1 is **open, Draft, not merged**. Do not merge it or modify `main` without explicit owner authorization.
 - Verified `main` HEAD: `ff50413b044cc788f7d1604728a365a76119889f`.
-- Verified development HEAD at this snapshot: `e8f53e14eb321593ad9af333bf9a4580a43a42ce`.
+- Verified development HEAD at this snapshot: `9bb07dd50e83c9881b46f0f0295412ce19bbbd19`.
 - Development HEAD is ahead of `main`; all work described below is on the development branch. `main` has not been changed by this work. This does not mean `main` has been independently proven stable.
 
 ## Current CI truth
@@ -21,7 +21,8 @@
 - Seekable spool tests passed in [Run #113](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42662783427) and [Run #114](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42662822367). Documentation updates passed in [Run #115](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42662855952) and [Run #116](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42662875655).
 - Commons Compress 1.28.0 is a temporary evaluation dependency. Its `ZipFile` Central Directory spike tests passed for normal listing/streaming, missing Central Directory rejection, orphan local record exclusion, duplicate central-directory name enumeration, CRC mismatch detection responsibility, and ZIP64 reading. It is not wired into production extraction.
 - Added `SeekableArchiveSpool`: bounded disk spooling, cancellation, caller-owned input preservation, and explicit temp-file cleanup; its five focused unit tests passed.
-- Added `CentralDirectoryZipBackend`: preflights Central Directory paths and declared limits, streams payloads with actual-size and CRC32 validation, and owns cleanup of both `ZipFile` and spool. Its new CI runs #117-#119 are currently in progress at this snapshot; do not claim this adapter tested until they finish.
+- Added `CentralDirectoryZipBackend`: preflights Central Directory paths and declared limits, streams payloads with actual-size and CRC32 validation, and owns cleanup of both `ZipFile` and spool. The initial CI attempt exposed a Kotlin backslash escaping compile error; it was fixed in commit `33601c3...`, and [Run #122](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42663863045) passed.
+- Added preflight rejection for file-vs-directory ancestor conflicts and tests for path conflicts, declared expansion-ratio rejection, and cancellation during payload copy. Runs #123 and #124 are pending at this snapshot; the docs/status commits will trigger subsequent CI runs. Do not claim these latest changes tested until the newest run completes.
 - The production ZIP engine remains the existing bounded `ZipInputStream` implementation until the adapter is integrated with the transactional writer and the complete regression/adversarial suite passes.
 - CI success does not prove physical Android/SAF provider behavior or release readiness.
 - Previous Run #87 on `bed52b8...` also passed. Do not confuse older run results with the latest run.
@@ -73,7 +74,7 @@ Latest completed work:
 4. Changed CI to unit tests only (no per-change Debug APK).
 5. Confirmed Run #88 passed on `8fbae0f...`.
 
-**Current concrete task:** verify CI runs #117-#119 for the new Central Directory adapter, fix any failures, then add adversarial tests (duplicate normalized names, cancellation during payload copy, actual-size/ratio limits, and rollback integration). Only after these pass should the adapter be connected to the existing transactional writer. Do not replace the production extractor until the full regression suite passes. Keep Zip4j as a specialist fallback for encrypted/split ZIP if needed.
+**Current concrete task:** verify CI runs #123-#124 and the latest documentation-triggered run. Fix any failures from the new path-conflict, expansion-ratio, and cancellation tests. Then add the missing integration layer that routes adapter output through the existing filesystem transactional rollback, with regression tests proving that a CRC/copy/cancellation failure removes every created destination item and preserves pre-existing content. Do not replace the production extractor until this full integration suite passes. Keep Zip4j as a specialist fallback for encrypted/split ZIP if needed.
 
 After that, re-evaluate Phase 1 exit criteria and the best next dependency-driven increment. Keep the broader universal file-analysis foundation in view; do not treat the ZIP task as the whole product.
 
