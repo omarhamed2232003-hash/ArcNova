@@ -285,6 +285,49 @@ class ZipExtractionEngineTest {
         }
     }
 
+    @Test fun enforcesTotalOutputLimitAndRollsBackAllEntries() {
+        val dir = tempDir()
+        try {
+            org.junit.Assert.assertThrows(ZipExtractionLimitException::class.java) {
+                ZipExtractionEngine.extract(
+                    ByteArrayInputStream(archive(
+                        "first.bin" to ByteArray(8) { 1 },
+                        "second.bin" to ByteArray(8) { 2 }
+                    )),
+                    dir,
+                    ExtractionPolicy(maxTotalOutputBytes = 10)
+                )
+            }
+            assertFalse(File(dir, "first.bin").exists())
+            assertFalse(File(dir, "second.bin").exists())
+            assertTrue(dir.listFiles().orEmpty().isEmpty())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun cancellationDuringActiveFileWriteRollsBackPartialFile() {
+        val dir = tempDir()
+        val payload = ByteArray(512 * 1024).also { java.util.Random(73L).nextBytes(it) }
+        var cancellationChecks = 0
+        try {
+            val error = org.junit.Assert.assertThrows(ZipExtractionCancelledException::class.java) {
+                ZipExtractionEngine.extract(
+                    ByteArrayInputStream(archive("nested/large.bin" to payload)),
+                    dir,
+                    cancellationRequested = {
+                        cancellationChecks++
+                        cancellationChecks >= 3
+                    }
+                )
+            }
+            assertTrue("Cancellation should occur after some output was written", error.bytesWritten > 0L)
+            assertTrue(dir.listFiles().orEmpty().isEmpty())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     @Test fun leavesCallerOwnedInputStreamOpen() {
         val dir = tempDir()
         var closed = false
