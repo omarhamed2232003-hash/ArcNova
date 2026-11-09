@@ -1,6 +1,8 @@
 # ZIP backend evaluation — Android / ARM64
 
-**Status (2026-11-09):** Commons Compress 1.28.0 is present as a temporary evaluation dependency. The Central-Directory `ZipFile` spike is implemented and CI-tested; it is **not** wired into production extraction and is not yet an ArcNova-supported extraction backend.
+**Status (2026-11-09):** Commons Compress 1.28.0 is present as a temporary evaluation dependency. The Central-Directory `ZipFile` spike and a narrow preflight/streaming adapter are implemented; the adapter's CI run is pending. Neither is wired into production extraction or an ArcNova-supported extraction backend.
+
+The adapter opens a bounded private spool, enumerates the Central Directory, rejects unsafe and duplicate normalized paths, checks declared entry/output/expansion limits before returning control, and validates actual byte counts and CRC32 while streaming payloads. It leaves destination writing and rollback to the caller; CRC failures can occur after bytes have been sent to the supplied output stream, so the caller must use the existing transactional writer and roll back on any exception.
 
 ## Decision summary
 
