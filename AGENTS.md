@@ -231,3 +231,52 @@ The owner explicitly requested (2026-11-09) that ArcNova's container-building ex
 - Do not interrupt current universal file-analysis and common-format foundations for a premature full OS virtualization project.
 - Introduce container abstractions when they help real file operations or runtime compatibility. Build a minimal real profile manager first; expand guest OS choices only as viable backends are proven.
 - Keep the owner's broad Windows-version and multi-OS ambition on the roadmap; do not silently narrow it to one Windows skin or one Wine prefix.
+
+
+## 13. Competitive research and best-of-breed integration strategy — owner-confirmed direction (2026-11-09)
+
+The owner wants ArcNova to learn from the strongest relevant projects without copying any one product's identity, UI, or code wholesale. The ambition is to build a unified, unusually capable Android-first file/software/game toolkit. Treat the following as a standing product strategy, not a one-time comparison.
+
+### Reference projects and what to learn
+
+- **Winlator / Wine-based Android projects:** study the Android lifecycle, Wine prefix/container setup, per-game launch profiles, Box86/Box64 integration, graphics/audio/input translation, environment tuning, and practical compatibility troubleshooting. These projects demonstrate that Windows software can run on Android for selected workloads, not that every Windows program or game is compatible.
+- **Bannerlator and related multi-backend launchers:** study isolated containers, selectable Wine/runtime versions, Box64 and FEX alternatives, graphics wrapper/driver catalogs, per-title settings, component version management, import/export, accurate backend pairing, and diagnostics. Treat runtime components as versioned, independently replaceable adapters rather than hard-coded app internals.
+- **PeaZip and mature archive tools:** study broad format coverage, multipart volumes, archive conversion, split/join, checksums/hashes, batch operations, archive browsing/search, file-manager integration, and mature CLI/engine reuse. Evaluate the actual decoder underneath each claimed format; a format list alone is not evidence of reliable support.
+- **Strata and advanced Android file managers:** study dual-pane workflows, SAF/storage integration, batch actions, drag/drop, bookmarks, search, previews/editors, network storage, privacy controls, and touch-first power-user UX.
+- **7-Zip, libarchive, and other maintained format libraries:** investigate as candidate engine sources for native parsing/extraction, subject to Android ARM64 build feasibility, exact format/version coverage, security history, dependency provenance, and license obligations.
+- **Box64, FEX, Wine, DXVK, VKD3D-Proton, Mesa/Turnip, and related projects:** study each at its actual layer. CPU translation, Windows API compatibility, Direct3D translation, Vulkan drivers, and Android integration solve different problems; they are not interchangeable and must be tested as a matched stack.
+
+Reference projects are research inputs, not automatic dependencies. For every proposed reuse, record upstream URL, exact revision, license, Android ABI/build status, supported operations and format versions, known limitations, security posture, redistribution/source obligations, and validation evidence. Prefer upstream libraries/engines over copying another app's whole codebase. Do not bundle another app, scrape proprietary components, or misrepresent another project's work as ours.
+
+### ArcNova's differentiator: one orchestration layer
+
+ArcNova should own the cohesive product experience and orchestration:
+1. Ingest a user-selected file, folder, installer, game package, or application.
+2. Identify likely type using signatures, metadata, extension hints, and confidence; report ambiguity instead of guessing.
+3. Build a capability plan from the registry: inspect, validate, hash, compare, extract, convert, install, or launch only where a real handler exists.
+4. Select the best eligible engine/backend for the device, architecture, format version, and task; explain why it was selected and offer alternatives only when meaningful.
+5. Execute as a cancellable, observable task with progress, logs, bounded resources, safe staging/rollback, and diagnostics.
+6. Preserve reusable per-file, per-game, per-container, and per-toolchain profiles without conflating UI shell, guest environment, runtime, or decoder.
+7. Present truthful results with separate states for detected, inspected, validated, extracted, installed, launched, and playable.
+
+The intended experience is not a pile of unrelated tools. It is a unified workspace that routes each job to the right native engine, specialist codec pipeline, installer handler, or compatibility runtime while keeping files, tasks, profiles, and diagnostics connected.
+
+### Product areas to benchmark continuously
+
+- **Universal file intelligence:** file signatures, metadata, hashes, integrity verification, comparison, duplicate discovery, hex/text/media previews, safe batch operations, split/join, and conversion.
+- **Archive and repack engineering:** common formats, multipart/solid archives, encrypted archives, specialist codecs/filters, archive testing, recovery/error reporting, and high-performance streaming.
+- **Windows software and PC games:** installer technology detection, safe extraction, managed Wine/compatibility environments, x86/x64-to-ARM translation, graphics/audio/input backends, per-game profiles, controller/mouse/keyboard handling, and compatibility diagnostics.
+- **Game assets and packages:** inspect/extract supported engine containers and provide format-aware browsing without bundling copyrighted game content.
+- **Container/workspace system:** multiple isolated environments, independently switchable visual shells, guest/runtime profiles, toolchains, mounts, resource limits, import/export, and safe task continuity.
+- **Professional UX:** modern Windows-inspired visual language, responsive phone/tablet layouts, touch-first navigation, optional desktop-like pointer/keyboard/multi-pane workflows, meaningful animation, accessible progress/error states, and no fake controls.
+- **Reliability and trust:** hostile-input sandboxing, resource limits, cancellation, cleanup/rollback, privacy, transparent permissions, license provenance, and reproducible validation.
+
+### Integration and prioritization rules
+
+- Do not attempt to implement every feature simultaneously. Select the next capability by user value, technical dependencies, Android ARM64 feasibility, security, and legal readiness.
+- Prefer direct native Android parsing for files when it is safer and more efficient than launching a guest OS. Use compatibility environments when the format/tool or Windows application genuinely requires them.
+- Reuse a mature component when it is legally distributable and technically suitable; write a clean adapter when that preserves ArcNova's architecture. Reimplement only when existing engines are unsuitable, unavailable, or incompatible with our requirements.
+- Do not copy UI layouts, branding, assets, or code wholesale. Learn the interaction principles and build a coherent ArcNova identity.
+- Benchmark real workflows and target-device performance, not marketing feature counts. Measure throughput, memory, storage overhead, battery/thermal behavior, cancellation latency, and correctness on representative files.
+- Keep the separate future game-specific GitHub project independent. It is not part of ArcNova's current scope; later integration may use documented interfaces only if the owner chooses.
+- Maintain an explicit distinction between researched, planned, implemented, CI-tested, device-tested, and end-to-end validated capabilities.
