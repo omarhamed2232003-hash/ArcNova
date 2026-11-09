@@ -1,32 +1,65 @@
 package com.arcnova.app.engine
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WindowsExecutableDetectorTest {
-    @Test fun recognizesPeExecutable() {
-        val bytes = ByteArray(128)
-        bytes[0] = 0x4d
-        bytes[1] = 0x5a
-        bytes[0x3c] = 0x40
-        bytes[0x40] = 0x50
-        bytes[0x41] = 0x45
-        assertEquals(WindowsExecutableDetector.Result.PE_EXECUTABLE, WindowsExecutableDetector.detect(bytes))
+    private fun pe(machine: Int, magic: Int, subsystem: Int = 3, characteristics: Int = 0x0002): ByteArray {
+        val bytes = ByteArray(512)
+        bytes[0] = 0x4d; bytes[1] = 0x5a
+        bytes[0x3c] = 0x80
+        bytes[0x80] = 0x50; bytes[0x81] = 0x45
+        fun put16(offset: Int, value: Int) {
+            bytes[offset] = value.toByte()
+            bytes[offset + 1] = (value ushr 8).toByte()
+        }
+        put16(0x84, machine)
+        put16(0x94, 0x00f0)
+        put16(0x96, characteristics)
+        put16(0x98, magic)
+        put16(0x98 + 68, subsystem)
+        return bytes
     }
 
-    @Test fun distinguishesDosHeaderWithoutPeAndNonExecutable() {
+    @Test fun recognizesPeExecutable() {
+        assertEquals(WindowsExecutableDetector.Result.PE_EXECUTABLE,
+            WindowsExecutableDetector.detect(pe(0x8664, 0x20b)))
+    }
+
+    @Test fun identifiesX64Pe32PlusConsoleExecutable() {
+        val info = WindowsExecutableDetector.inspect(pe(0x8664, 0x20b, 3))
+        assertEquals(WindowsExecutableDetector.Architecture.X64, info.architecture)
+        assertEquals(WindowsExecutableDetector.OptionalHeader.PE32_PLUS, info.optionalHeader)
+        assertEquals(WindowsExecutableDetector.Subsystem.WINDOWS_CONSOLE, info.subsystem)
+        assertFalse(info.isDll)
+    }
+
+    @Test fun identifiesX86GuiDll() {
+        val info = WindowsExecutableDetector.inspect(pe(0x014c, 0x10b, 2, 0x2000))
+        assertEquals(WindowsExecutableDetector.Architecture.X86, info.architecture)
+        assertEquals(WindowsExecutableDetector.Subsystem.WINDOWS_GUI, info.subsystem)
+        assertTrue(info.isDll)
+    }
+
+    @Test fun identifiesArm64() {
+        assertEquals(WindowsExecutableDetector.Architecture.ARM64,
+            WindowsExecutableDetector.inspect(pe(0xaa64, 0x20b)).architecture)
+    }
+
+    @Test fun distinguishesDosHeaderAndNonExecutable() {
         val mz = ByteArray(64)
-        mz[0] = 0x4d
-        mz[1] = 0x5a
+        mz[0] = 0x4d; mz[1] = 0x5a
         assertEquals(WindowsExecutableDetector.Result.MZ_HEADER_ONLY, WindowsExecutableDetector.detect(mz))
-        assertEquals(WindowsExecutableDetector.Result.NOT_EXECUTABLE, WindowsExecutableDetector.detect(byteArrayOf(1, 2)))
+        assertEquals(WindowsExecutableDetector.Result.NOT_EXECUTABLE,
+            WindowsExecutableDetector.detect(byteArrayOf(1, 2)))
     }
 
     @Test fun rejectsInvalidPeOffset() {
         val bytes = ByteArray(64)
-        bytes[0] = 0x4d
-        bytes[1] = 0x5a
-        bytes[0x3c] = 0x20
-        assertEquals(WindowsExecutableDetector.Result.INVALID_PE_OFFSET, WindowsExecutableDetector.detect(bytes))
+        bytes[0] = 0x4d; bytes[1] = 0x5a; bytes[0x3c] = 0x20
+        assertEquals(WindowsExecutableDetector.Result.INVALID_PE_OFFSET,
+            WindowsExecutableDetector.detect(bytes))
     }
 }

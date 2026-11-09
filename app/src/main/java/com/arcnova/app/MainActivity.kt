@@ -31,7 +31,7 @@ class MainActivity : Activity() {
             text = "Android archive research"; textSize = 16f
             gravity = Gravity.CENTER; setPadding(0, 8, 0, 28)
         })
-        root.addView(Button(this).apply { text = "Choose archive part"; setOnClickListener { pickFile() } })
+        root.addView(Button(this).apply { text = "Choose file"; setOnClickListener { pickFile() } })
         fileLabel = TextView(this).apply { text = "No file selected"; textSize = 14f; setPadding(0, 20, 0, 20) }
         root.addView(fileLabel)
         root.addView(TextView(this).apply {
@@ -63,7 +63,7 @@ class MainActivity : Activity() {
         val extensionHint = ArchiveFormatDetector.detect(source.displayName)
         val prefix = readPrefix(uri)
         val signature = prefix?.let(ArchiveSignatureDetector::detect)
-        val executable = prefix?.let(WindowsExecutableDetector::detect)
+        val executable = prefix?.let(WindowsExecutableDetector::inspect)
         val signatureLabel = if (signature == null) "Could not read file header" else signature.label
         val verdict = when {
             signature == null -> "Header inspection unavailable"
@@ -72,15 +72,29 @@ class MainActivity : Activity() {
             extensionHint.format == signature -> "Extension and header agree"
             else -> "Extension/header mismatch"
         }
+        val exeSummary = when (executable?.result) {
+            WindowsExecutableDetector.Result.PE_EXECUTABLE -> buildString {
+                append("Valid PE header (preliminary)")
+                append("\nArchitecture: "); append(executable.architecture)
+                append("\nPE format: "); append(executable.optionalHeader)
+                append("\nSubsystem: "); append(executable.subsystem)
+                append("\nDLL: "); append(if (executable.isDll) "Yes" else "No")
+            }
+            WindowsExecutableDetector.Result.MZ_HEADER_ONLY -> "MZ header found; PE header not available in inspected prefix"
+            WindowsExecutableDetector.Result.INVALID_PE_OFFSET -> "MZ found, but PE offset/signature is invalid"
+            WindowsExecutableDetector.Result.NOT_EXECUTABLE -> "No Windows MZ executable signature"
+            null -> "Executable header inspection unavailable"
+        }
         fileLabel.text = buildString {
             append("Selected: "); append(source.displayName ?: "Unknown name")
             append("\nSize: "); append(source.declaredSizeBytes?.let(::formatBytes) ?: "Unknown")
             append("\nMIME: "); append(contentResolver.getType(uri) ?: "Unknown")
             append("\nExtension hint: "); append(extensionHint.format.label)
             append("\nHeader signature: "); append(signatureLabel)
-            append("\nResult: "); append(verdict)
-            append("\nNote: signature check is preliminary, not archive validation.")
-            append("\nDecoder: not connected; extraction unavailable.")
+            append("\nArchive result: "); append(verdict)
+            append("\nWindows EXE analysis: "); append(exeSummary)
+            append("\nNote: header checks are preliminary, not full validation.")
+            append("\nNo installer execution or extraction is connected yet.")
         }
     }
 
