@@ -70,6 +70,8 @@ object ZipInspectionEngine {
             // Cancellation can happen while copying the source stream into the
             // seekable cache file, before a CentralDirectoryZipArchive exists.
             throw ZipInspectionCancelledException()
+        } catch (limit: ArchiveSpoolLimitException) {
+            throw ZipInspectionLimitException(limit.message ?: "ZIP archive exceeds input limit")
         } catch (cancelled: CentralDirectoryZipCancelledException) {
             throw ZipInspectionCancelledException()
         } catch (limit: CentralDirectoryZipException) {
