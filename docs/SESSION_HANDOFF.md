@@ -1,7 +1,7 @@
 # ArcNova — Current Session Handoff
 
 > **Purpose:** Fast, reliable recovery when a new AI chat/session opens. Read this after `AGENTS.md`, then re-check GitHub before acting. This is a snapshot, not an authority over live repository state.
-> **Snapshot verified:** 2026-11-09 17:09 UTC.
+> **Snapshot verified:** 2026-11-09 17:18 UTC.
 
 ## Repository and working lane
 
@@ -11,15 +11,16 @@
 - Open PR: [#1 — Make ZIP extraction and SAF destination copy transactional](https://github.com/omarhamed2232003-hash/ArcNova/pull/1)
 - PR #1 is **open, Draft, not merged**. Do not merge it or modify `main` without explicit owner authorization.
 - Verified `main` HEAD: `ff50413b044cc788f7d1604728a365a76119889f`.
-- Verified development HEAD at this snapshot: `09ae258a2528a71e9a38045fd351dc6781452673`.
+- Verified development HEAD at this snapshot: `32929fc743a25ee3420493b3a284c147955c92e0`.
 - Development HEAD is ahead of `main`; all work described below is on the development branch. `main` has not been changed by this work. This does not mean `main` has been independently proven stable.
 
 ## Current CI truth
 
 - Workflow: `.github/workflows/android.yml`.
 - Current policy: run unit tests only with `gradle testDebugUnitTest`; no automatic Debug APK build or artifact upload on each change.
-- Latest completed successful test run: [Run #110](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42661386820) on commit `09ae258a2528a71e9a38045fd351dc6781452673` — **completed / success**. Job `test` and its `Run unit tests` step passed.
+- Latest completed successful test run before the current spool change: [Run #112](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42661995115) on commit `84b56f844723cb1643c09e554dcef388d9af1255` — **completed / success**. Job `test` and its `Run unit tests` step passed. The new seekable-spool commits `2405863...` and `32929fc...` are awaiting CI validation; do not claim them tested until Actions completes.
 - Commons Compress 1.28.0 is a temporary evaluation dependency. Its `ZipFile` Central Directory spike tests passed for normal listing/streaming, missing Central Directory rejection, orphan local record exclusion, duplicate central-directory name enumeration, CRC mismatch detection responsibility, and ZIP64 reading. It is not wired into production extraction.
+- Added `SeekableArchiveSpool` and its handle as the first adapter foundation: bounded disk spooling, cancellation, caller-owned input preservation, and explicit temp-file cleanup. Five focused unit tests were added; CI status is pending.
 - The production ZIP engine remains the existing bounded `ZipInputStream` implementation until a complete adapter passes all regression and adversarial tests.
 - CI success does not prove physical Android/SAF provider behavior or release readiness.
 - Previous Run #87 on `bed52b8...` also passed. Do not confuse older run results with the latest run.
@@ -71,7 +72,7 @@ Latest completed work:
 4. Changed CI to unit tests only (no per-change Debug APK).
 5. Confirmed Run #88 passed on `8fbae0f...`.
 
-**Next concrete engineering task:** design the Commons Compress adapter and bounded seekable spool. The adapter must enumerate and validate Central Directory metadata before writing, reject duplicate normalized paths, enforce ArcNova entry/output/path/expansion limits, compute CRC32 during payload streaming (the library stream does not do this automatically), preserve cancellation and transactional rollback, and clean up the private temp archive on every exit path. Inspect existing policy/writer interfaces before implementation. Do not replace the production extractor until the full regression suite passes. Keep Zip4j as a specialist fallback for encrypted/split ZIP if needed.
+**Current concrete task:** validate the new bounded seekable spool with CI, then implement the Commons Compress Central Directory adapter. The adapter must enumerate and validate metadata before writing, reject duplicate normalized paths, enforce ArcNova entry/output/path/expansion limits, compute CRC32 during payload streaming (the library stream does not do this automatically), preserve cancellation and transactional rollback, and close the ZipFile before deleting the private temp archive. Do not replace the production extractor until the full regression suite passes. Keep Zip4j as a specialist fallback for encrypted/split ZIP if needed.
 
 After that, re-evaluate Phase 1 exit criteria and the best next dependency-driven increment. Keep the broader universal file-analysis foundation in view; do not treat the ZIP task as the whole product.
 
