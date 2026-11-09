@@ -52,6 +52,7 @@ object TransactionalTreeCopy {
         val sourceRoot = sourceDirectory.canonicalFile
         val createdDocumentIds = mutableListOf<String>()
         val reservedNames = mutableMapOf<String, MutableSet<String>>()
+        val visitedDirectories = mutableSetOf(sourceRoot.path)
         var filesCopied = 0
         var directoriesCreated = 0
         var bytesCopied = 0L
@@ -82,6 +83,9 @@ object TransactionalTreeCopy {
                 ensureAvailable(parentId, name)
 
                 if (child.isDirectory) {
+                    if (!visitedDirectories.add(canonical.path)) {
+                        throw TreeCopyException("Repeated or cyclic staged directory: $path")
+                    }
                     val directoryId = store.createDirectory(parentId, name)
                     createdDocumentIds.add(directoryId)
                     directoriesCreated++
@@ -117,7 +121,12 @@ object TransactionalTreeCopy {
             checkCancelled(cancellationRequested)
             return TreeCopyResult(filesCopied, directoriesCreated, bytesCopied)
         } catch (error: Exception) {
-            rollback(createdDocumentIds, store, error)
+            val cleanupFailures = rollback(createdDocumentIds, store)
+            if (cleanupFailures.isNotEmpty()) {
+                val rollbackError = TreeCopyRollbackException(error, cleanupFailures.size)
+                cleanupFailures.forEach(rollbackError::addSuppressed)
+                throw rollbackError
+            }
             throw error
         }
     }
@@ -139,18 +148,22 @@ object TransactionalTreeCopy {
         return left + right
     }
 
-    private fun rollback(createdIds: List<String>, store: TreeDocumentStore, originalError: Exception) {
+    private fun rollback(createdIds: List<String>, store: TreeDocumentStore): List<Exception> {
+        val failures = mutableListOf<Exception>()
         createdIds.asReversed().forEach { id ->
             try {
                 if (!store.delete(id)) {
                     throw TreeCopyException("Destination provider could not roll back document: $id")
                 }
             } catch (cleanupError: Exception) {
-                originalError.addSuppressed(cleanupError)
+                failures.add(cleanupError)
             }
         }
+        return failures
     }
 }
 
-open class TreeCopyException(message: String) : Exception(message)
+open class TreeCopyException(message: String, cause: Throwable? = null) : Exception(message, cause)
 class TreeCopyCancelledException : TreeCopyException("Destination copy cancelled")
+class TreeCopyRollbackException(cause: Exception, cleanupFailureCount: Int) :
+    TreeCopyException("Copy failed and rollback was incomplete: $cleanupFailureCount destination item(s) could not be removed", cause)
