@@ -21,3 +21,6 @@ A CI-tested implementation is not automatically device-validated, production-rea
 
 
 - Extraction now translates archive-spool cancellation and input-size-limit failures into the public `ZipExtractionCancelledException` / `ZipExtractionLimitException` contract. This ensures the app-facing engine reports consistent errors even when failure occurs before the Central Directory reader opens.
+
+
+- ZIP extraction now distinguishes policy-limit failures from malformed-archive failures at the backend boundary via `CentralDirectoryZipLimitException`; the app-facing extraction API maps backend cancellation and limit violations to `ZipExtractionCancelledException` and `ZipExtractionLimitException`. The actual-stream total-output rollback test now asserts the public limit exception and verifies prior destination content is preserved. This latest refinement is awaiting CI.
