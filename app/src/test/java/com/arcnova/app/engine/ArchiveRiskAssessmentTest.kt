@@ -38,7 +38,7 @@ class ArchiveRiskAssessmentTest {
 
     @Test fun warnsOnVeryLargeEntryCounts() {
         val result = ArchiveRiskAssessment.assess(
-            report(entry("a")), ArchiveRiskAssessment.ArchiveRiskThresholds(maxEntriesWarning = 0)
+            report(entry("a")), ArchiveRiskThresholds(maxEntriesWarning = 0)
         )
         assertNotNull(finding(result, "entry-count"))
     }
