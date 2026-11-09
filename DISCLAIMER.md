@@ -5,7 +5,7 @@ Last reviewed: 2026-11-09
 ArcNova is an independent, early-stage software project. This document is informational and is not legal advice. It does not replace applicable law, platform terms, or third-party licenses.
 
 ## 1. No affiliation or endorsement
-ArcNova is not affiliated with, endorsed by, sponsored by, or officially connected to Valve, Steam, Activision, Call of Duty, FitGirl, Microsoft, Wine, Proton, Winlator, or any other third-party company, publisher, developer, project, or trademark owner. Names and marks identify compatibility targets or interoperability only. All rights remain with their respective owners.
+ArcNova is not affiliated with, endorsed by, sponsored by, or officially connected to Valve, Steam, Activision, FitGirl, Microsoft, Wine, Proton, Winlator, or any other third-party company, publisher, developer, project, or trademark owner. Names and marks identify compatibility targets or interoperability only. All rights remain with their respective owners.
 
 ## 2. Games, installers, archives and user responsibility
 Users are responsible for obtaining games, installers, archives, keys, mods, and other content lawfully and complying with applicable copyright law, license terms, and platform terms. ArcNova does not provide, host, sell, or authorize unauthorized game copies. The repository and official releases must not contain copyrighted game payloads, Steam client assets, proprietary repack plugins, or other material without verified redistribution rights.
