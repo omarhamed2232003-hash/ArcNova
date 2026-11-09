@@ -108,6 +108,30 @@ class ZipCentralDirectoryBackendTest {
         }
     }
 
+    @Test fun centralDirectoryEnumerationPreservesDuplicateNamesForPolicyRejection() {
+        val archive = File.createTempFile("arcnova-duplicates-", ".zip")
+        try {
+            val output = ByteArrayOutputStream()
+            ZipOutputStream(output).use { zip ->
+                zip.putNextEntry(ZipEntry("duplicate.txt"))
+                zip.write("first".toByteArray())
+                zip.closeEntry()
+                zip.putNextEntry(ZipEntry("duplicate.txt"))
+                zip.write("second".toByteArray())
+                zip.closeEntry()
+            }
+            archive.writeBytes(output.toByteArray())
+
+            ZipFile.builder().setFile(archive).get().use { zip ->
+                val entries = Collections.list(zip.entries)
+                assertEquals(2, entries.size)
+                assertTrue(entries.all { it.name == "duplicate.txt" })
+            }
+        } finally {
+            archive.delete()
+        }
+    }
+
     @Test fun readsEntriesThroughCentralDirectoryAndStreamsPayload() {
         val archive = File.createTempFile("arcnova-central-", ".zip")
         try {
