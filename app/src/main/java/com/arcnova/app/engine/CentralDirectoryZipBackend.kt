@@ -106,7 +106,7 @@ object CentralDirectoryZipBackend {
         if (name.isBlank() || name.indexOf(0.toChar()) >= 0) {
             throw CentralDirectoryZipUnsafePathException(name)
         }
-        val normalized = name.replace('\\\\', '/')
+        val normalized = name.replace('\\', '/')
         if (normalized.startsWith('/') || Regex("^[a-zA-Z]:").containsMatchIn(normalized)) {
             throw CentralDirectoryZipUnsafePathException(name)
         }
