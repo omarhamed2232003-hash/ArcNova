@@ -113,19 +113,34 @@ class ZipCentralDirectoryBackendTest {
         try {
             val output = ByteArrayOutputStream()
             ZipOutputStream(output).use { zip ->
-                zip.putNextEntry(ZipEntry("duplicate.txt"))
+                zip.putNextEntry(ZipEntry("first.txt"))
                 zip.write("first".toByteArray())
                 zip.closeEntry()
-                zip.putNextEntry(ZipEntry("duplicate.txt"))
+                zip.putNextEntry(ZipEntry("other.txt"))
                 zip.write("second".toByteArray())
                 zip.closeEntry()
             }
-            archive.writeBytes(output.toByteArray())
+            val bytes = output.toByteArray()
+            val centralStart = firstCentralDirectoryOffset(bytes)
+            val firstNameLength = (bytes[centralStart + 28].toInt() and 0xff) or
+                ((bytes[centralStart + 29].toInt() and 0xff) shl 8)
+            val firstExtraLength = (bytes[centralStart + 30].toInt() and 0xff) or
+                ((bytes[centralStart + 31].toInt() and 0xff) shl 8)
+            val firstCommentLength = (bytes[centralStart + 32].toInt() and 0xff) or
+                ((bytes[centralStart + 33].toInt() and 0xff) shl 8)
+            val secondCentralStart = centralStart + 46 + firstNameLength +
+                firstExtraLength + firstCommentLength
+            val duplicateName = "first.txt".toByteArray()
+            assertEquals(duplicateName.size,
+                (bytes[secondCentralStart + 28].toInt() and 0xff) or
+                    ((bytes[secondCentralStart + 29].toInt() and 0xff) shl 8))
+            duplicateName.copyInto(bytes, secondCentralStart + 46)
+            archive.writeBytes(bytes)
 
             ZipFile.builder().setFile(archive).get().use { zip ->
                 val entries = Collections.list(zip.entries)
                 assertEquals(2, entries.size)
-                assertTrue(entries.all { it.name == "duplicate.txt" })
+                assertTrue(entries.all { it.name == "first.txt" })
             }
         } finally {
             archive.delete()
