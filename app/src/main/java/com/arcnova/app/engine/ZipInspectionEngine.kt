@@ -1,5 +1,6 @@
 package com.arcnova.app.engine
 
+import java.io.FilterInputStream
 import java.io.InputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -27,7 +28,7 @@ object ZipInspectionEngine {
         val seenNames = mutableSetOf<String>()
         var totalBytes = 0L
         var entry: ZipEntry?
-        ZipInputStream(input.buffered()).use { zip ->
+        val nonClosingInput = object : FilterInputStream(input) {\n            override fun close() = Unit\n        }\n        ZipInputStream(nonClosingInput.buffered()).use { zip ->
             while (true) {
                 if (cancellationRequested()) throw ZipInspectionCancelledException()
                 entry = zip.nextEntry ?: break
