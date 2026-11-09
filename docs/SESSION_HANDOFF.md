@@ -207,3 +207,24 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Persistable URI grant is attempted from the returned URI. Provider-specific grant behavior still requires validation; cancellation returns null and leaves the current selection unchanged.
 - Must test picking from Downloads, internal storage, and any cloud/document provider available; select a destination folder; extract; inspect; cancel; and verify permissions after Activity/process recreation.
 - This change does not prove the earlier intermittent "Use this folder" issue is fully resolved. It removes the deprecated result callback path and improves lifecycle correctness, while provider compatibility remains an end-to-end test requirement.
+
+
+## Build-toolchain compatibility correction — 2026-11-10
+
+### Failure diagnosis
+- Runs #219–#228 failed at `:app:checkDebugAarMetadata`, before Kotlin compilation or unit tests.
+- Exact root cause from Actions logs: AndroidX Activity 1.13.0 and its transitive AndroidX Core 1.18.0 require compileSdk 36+ and AGP 8.9.1+. The repository still had compileSdk 35 and AGP 8.7.3.
+- This was a dependency/toolchain compatibility miss in the earlier modernization. Do not describe it as a ZIP test failure.
+
+### Research and selected alignment
+- Official AndroidX Activity release notes identify 1.13.0 as stable and 1.14.0-alpha03 as prerelease: https://developer.android.com/jetpack/androidx/releases/activity
+- Official AGP API reference lists 9.5.1 as current stable and 9.6.0-alpha03 as preview: https://developer.android.com/reference/tools/gradle-api
+- Official AGP 9.5 release notes specify Gradle 9.6.0 minimum/default, SDK Build Tools 36.0.0 and JDK 17: https://developer.android.com/build/releases/agp-9-5-0-release-notes
+- Official AGP guidance demonstrates Kotlin Android plugin 2.4.10 with AGP 9.5.0: https://developer.android.com/build/releases/about-agp
+- CI previously ran Gradle 9.8.2 and JDK 17, satisfying the documented Gradle/JDK minimums for AGP 9.5.1. No wrapper file is tracked in this repository tree; verify the CI setup action's actual Gradle selection from the next run.
+- Updated root plugin versions to AGP 9.5.1 and Kotlin Android 2.4.10; raised app compileSdk to 36. Kept targetSdk 35 intentionally separate: compileSdk enables compilation against newer APIs; targetSdk opts into runtime behavior and must be changed only after a separate behavior/compatibility review.
+- This is a toolchain alignment, not a reason to jump targetSdk or minSdk without research.
+
+### Pending validation
+- Next CI run must resolve plugin and Kotlin DSL compatibility and execute `testDebugUnitTest`. If AGP 9.5.1 exposes migration issues, inspect exact compiler/plugin errors and follow official AGP 9 migration guidance rather than randomly downgrading dependencies.
+- No APK build requested or triggered intentionally; no merge to main.
