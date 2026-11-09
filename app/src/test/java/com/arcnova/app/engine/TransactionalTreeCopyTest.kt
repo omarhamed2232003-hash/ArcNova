@@ -21,6 +21,7 @@ class TransactionalTreeCopyTest {
         val nodes = linkedMapOf("root" to Node("root", "", null, true))
         var failCreateName: String? = null
         var failOpenName: String? = null
+        var failWriteName: String? = null
         var failDeleteName: String? = null
         private var nextId = 0
 
@@ -44,6 +45,22 @@ class TransactionalTreeCopyTest {
             val node = nodes.getValue(documentId)
             if (node.name == failOpenName) throw IllegalStateException("simulated provider output failure")
             return object : ByteArrayOutputStream() {
+                override fun write(value: Int) {
+                    if (node.name == failWriteName && size() >= 3) {
+                        throw java.io.IOException("simulated partial provider write failure")
+                    }
+                    super.write(value)
+                }
+
+                override fun write(buffer: ByteArray, offset: Int, length: Int) {
+                    if (node.name == failWriteName && size() + length > 3) {
+                        val allowed = (3 - size()).coerceAtLeast(0)
+                        if (allowed > 0) super.write(buffer, offset, allowed)
+                        throw java.io.IOException("simulated partial provider write failure")
+                    }
+                    super.write(buffer, offset, length)
+                }
+
                 override fun close() {
                     super.close()
                     node.bytes = toByteArray()
@@ -168,6 +185,28 @@ class TransactionalTreeCopyTest {
             }
 
             assertTrue(store.paths().isEmpty())
+        } finally {
+            source.deleteRecursively()
+        }
+    }
+
+    @Test fun partialOutputWriteFailureRollsBackDocumentAndPreservesExistingItems() {
+        val source = tempDir()
+        val store = FakeTreeStore()
+        val existingId = store.addExisting("keep.txt", "important".toByteArray())
+        store.failWriteName = "partial.txt"
+        try {
+            File(source, "partial.txt").writeText("payload-that-fails-after-three-bytes")
+
+            org.junit.Assert.assertThrows(java.io.IOException::class.java) {
+                TransactionalTreeCopy.copy(source, "root", store)
+            }
+
+            assertEquals(listOf("keep.txt"), store.paths())
+            assertEquals(
+                "important",
+                store.nodes.getValue(existingId).bytes.toString(Charsets.UTF_8)
+            )
         } finally {
             source.deleteRecursively()
         }
