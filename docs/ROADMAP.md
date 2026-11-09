@@ -51,7 +51,7 @@ Complete security review, privacy/data-flow review, dependency and license notic
 
 ## Build and validation policy
 
-- CI runs unit tests and assembles a Debug APK after code changes. This is a developer feedback loop, not a user-facing release.
+- Current CI runs `gradle testDebugUnitTest` only. Debug APK assembly is intentionally not run on every change; build an APK only at a deliberate integration/device-testing checkpoint. Any APK is an internal test artifact, not a user-facing release.
 - Do not spend time polishing the prototype UI before the engine contracts are stable, except for small controls needed to exercise and validate functionality.
 - Do not mark a capability implemented until its actual operation has tests; do not mark it device-validated until it passes on a physical device.
 - Preserve existing files and backups; extend the current architecture incrementally rather than restarting the project.
