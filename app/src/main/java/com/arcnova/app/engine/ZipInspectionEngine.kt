@@ -30,7 +30,8 @@ object ZipInspectionEngine {
         var entry: ZipEntry?
         val nonClosingInput = object : FilterInputStream(input) {
             override fun close() = Unit
-        }\n        ZipInputStream(nonClosingInput.buffered()).use { zip ->
+        }
+        ZipInputStream(nonClosingInput.buffered()).use { zip ->
             while (true) {
                 if (cancellationRequested()) throw ZipInspectionCancelledException()
                 entry = zip.nextEntry ?: break
