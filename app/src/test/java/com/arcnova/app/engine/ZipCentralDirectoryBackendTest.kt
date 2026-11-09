@@ -6,6 +6,9 @@ import java.io.IOException
 import java.util.Collections
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
+import org.apache.commons.compress.archivers.zip.Zip64Mode
 import org.apache.commons.compress.archivers.zip.ZipFile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -168,6 +171,36 @@ class ZipCentralDirectoryBackendTest {
                 val actualCrc = java.util.zip.CRC32().apply { update(extracted) }.value
                 assertNotEquals("Adapter must reject payloads whose computed CRC differs from metadata",
                     entry.crc, actualCrc)
+            }
+        } finally {
+            archive.delete()
+        }
+    }
+
+    @Test fun readsZip64ArchiveThroughCentralDirectory() {
+        val archive = File.createTempFile("arcnova-zip64-", ".zip")
+        try {
+            val payload = "zip64-central-directory-payload".toByteArray()
+            ZipArchiveOutputStream(archive).use { output ->
+                output.setUseZip64(Zip64Mode.Always)
+                output.putArchiveEntry(ZipArchiveEntry("zip64/data.txt"))
+                output.write(payload)
+                output.closeArchiveEntry()
+            }
+
+            val bytes = archive.readBytes()
+            assertTrue("ZIP64 End of Central Directory record should be present",
+                (0..bytes.size - 4).any { littleEndianInt(bytes, it) == 0x06064b50 })
+            assertTrue("ZIP64 locator should be present",
+                (0..bytes.size - 4).any { littleEndianInt(bytes, it) == 0x07064b50 })
+
+            ZipFile.builder().setFile(archive).get().use { zip ->
+                val entries = Collections.list(zip.entries)
+                assertEquals(1, entries.size)
+                val entry = zip.getEntry("zip64/data.txt")
+                assertNotNull(entry)
+                val extracted = zip.getInputStream(entry).use { it.readBytes() }
+                assertTrue(payload.contentEquals(extracted))
             }
         } finally {
             archive.delete()
