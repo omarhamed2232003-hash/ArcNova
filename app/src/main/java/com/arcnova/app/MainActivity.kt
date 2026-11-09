@@ -1,8 +1,6 @@
 package com.arcnova.app
 
-import android.app.Activity
 import android.app.AlertDialog
-import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -10,6 +8,8 @@ import android.os.Looper
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.view.Gravity
+import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -31,7 +31,7 @@ import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     companion object {
         private const val MAX_ARCHIVE_INPUT_BYTES = 2L * 1024L * 1024L * 1024L
     }
@@ -45,8 +45,12 @@ class MainActivity : Activity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     private val cancelRequested = AtomicBoolean(false)
-    private val requestPick = 1001
-    private val requestFolder = 1002
+    private val openArchiveDocument = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let(::handlePickedArchive) }
+    private val openDestinationTree = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri -> uri?.let(::handlePickedDestination) }
     private var selectedArchive: ArchiveSource? = null
     private var destinationTree: Uri? = null
 
@@ -105,82 +109,76 @@ class MainActivity : Activity() {
     }
 
     private fun pickFile() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "*/*"
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-        }
-        startActivityForResult(intent, requestPick)
+        openArchiveDocument.launch(arrayOf("*/*"))
     }
 
     private fun pickDestination() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
-                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-        }
-        startActivityForResult(intent, requestFolder)
+        openDestinationTree.launch(null)
     }
 
-    @Deprecated("Platform document picker retained for broad compatibility")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode != RESULT_OK || data?.data == null) return
-        val uri = data.data!!
-        if (requestCode == requestPick) {
-            retainPermission(uri, data.flags, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            selectedArchive = null
-            extractButton.isEnabled = false
-            inspectButton.isEnabled = false
-            chooseFolderButton.isEnabled = false
-            fileLabel.text = "Checking selected file…"
-            statusLabel.text = "Opening file provider…"
-            // SAF providers may be cloud-backed or slow. Never query metadata/read headers on the UI thread.
-            worker.execute {
-                try {
-                    val source = readArchiveSource(uri)
-                        ?: throw IllegalStateException("The selected provider did not return readable file information")
-                    contentResolver.openInputStream(uri)?.use { input ->
-                        if (input.read() < 0) throw IllegalStateException("The selected file is empty or unreadable")
-                    } ?: throw IllegalStateException("The selected provider could not open this file")
-                    val signature = readPrefix(uri)?.let(ArchiveSignatureDetector::detect)
-                    val extension = ArchiveFormatDetector.detect(source.displayName)
-                    val supported = extension.format == ArchiveFormat.ZIP || signature == ArchiveFormat.ZIP
-                    mainHandler.post {
-                        selectedArchive = source
-                        fileLabel.text = buildString {
-                            append("Selected: "); append(source.displayName ?: "Unknown")
-                            append("\nSize: "); append(source.declaredSizeBytes?.let(::formatBytes) ?: "Unknown")
-                            append("\nDetected extension: "); append(extension.format.label)
-                            append("\nHeader: "); append(signature?.label ?: "Unavailable")
-                            append("\nZIP extraction: "); append(if (supported) "Supported" else "Not supported yet")
-                        }
-                        extractButton.isEnabled = supported
-                        inspectButton.isEnabled = supported
-                        chooseFolderButton.isEnabled = supported
-                        statusLabel.text = if (supported) "Choose a destination folder to continue."
-                            else "File is readable, but its format is not supported yet."
+    private fun handlePickedArchive(uri: Uri) {
+        // OpenDocument is the lifecycle-aware AndroidX contract for ACTION_OPEN_DOCUMENT.
+        // Persist the grant when the provider supports it; the active URI remains usable either way.
+        runCatching {
+            contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        selectedArchive = null
+        extractButton.isEnabled = false
+        inspectButton.isEnabled = false
+        chooseFolderButton.isEnabled = false
+        fileLabel.text = "Checking selected file…"
+        statusLabel.text = "Opening file provider…"
+        worker.execute {
+            try {
+                val source = readArchiveSource(uri)
+                    ?: throw IllegalStateException("The selected provider did not return readable file information")
+                contentResolver.openInputStream(uri)?.use { input ->
+                    if (input.read() < 0) throw IllegalStateException("The selected file is empty or unreadable")
+                } ?: throw IllegalStateException("The selected provider could not open this file")
+                val signature = readPrefix(uri)?.let(ArchiveSignatureDetector::detect)
+                val extension = ArchiveFormatDetector.detect(source.displayName)
+                val supported = extension.format == ArchiveFormat.ZIP || signature == ArchiveFormat.ZIP
+                mainHandler.post {
+                    selectedArchive = source
+                    fileLabel.text = buildString {
+                        append("Selected: "); append(source.displayName ?: "Unknown")
+                        append("\\nSize: "); append(source.declaredSizeBytes?.let(::formatBytes) ?: "Unknown")
+                        append("\\nDetected extension: "); append(extension.format.label)
+                        append("\\nHeader: "); append(signature?.label ?: "Unavailable")
+                        append("\\nZIP extraction: "); append(if (supported) "Supported" else "Not supported yet")
                     }
-                } catch (error: Exception) {
-                    mainHandler.post {
-                        selectedArchive = null
-                        fileLabel.text = "Could not read selected file"
-                        statusLabel.text = "File access failed: ${error.message ?: error.javaClass.simpleName}"
-                    }
+                    extractButton.isEnabled = supported
+                    inspectButton.isEnabled = supported
+                    chooseFolderButton.isEnabled = supported
+                    statusLabel.text = if (supported) "Choose a destination folder to continue."
+                        else "File is readable, but its format is not supported yet."
+                }
+            } catch (error: Exception) {
+                mainHandler.post {
+                    selectedArchive = null
+                    fileLabel.text = "Could not read selected file"
+                    statusLabel.text = "File access failed: ${error.message ?: error.javaClass.simpleName}"
                 }
             }
-        } else if (requestCode == requestFolder) {
-            retainPermission(uri, data.flags,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-            try {
-                // Validate that the returned URI is a usable document-tree URI before enabling extraction.
-                DocumentsContract.getTreeDocumentId(uri)
-                destinationTree = uri
-                statusLabel.text = "Destination folder selected."
-                extractButton.isEnabled = selectedArchive != null
-            } catch (error: Exception) {
-                destinationTree = null
-                statusLabel.text = "Could not access selected folder: ${error.message ?: error.javaClass.simpleName}"
-            }
+        }
+    }
+
+    private fun handlePickedDestination(uri: Uri) {
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+        }
+        try {
+            DocumentsContract.getTreeDocumentId(uri)
+            destinationTree = uri
+            statusLabel.text = "Destination folder selected."
+            extractButton.isEnabled = selectedArchive != null
+        } catch (error: Exception) {
+            destinationTree = null
+            statusLabel.text = "Could not access selected folder: ${error.message ?: error.javaClass.simpleName}"
         }
     }
 
@@ -357,14 +355,6 @@ class MainActivity : Activity() {
         inspectButton.isEnabled = !busy && selectedArchive != null
         chooseFolderButton.isEnabled = !busy && selectedArchive != null
         cancelButton.isEnabled = busy
-    }
-
-    private fun retainPermission(uri: Uri, flags: Int, requested: Int) {
-        val granted = flags and requested
-        val persistable = flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION != 0
-        if (persistable && granted != 0) runCatching {
-            contentResolver.takePersistableUriPermission(uri, granted)
-        }
     }
 
     private fun readPrefix(uri: Uri): ByteArray? = runCatching {
