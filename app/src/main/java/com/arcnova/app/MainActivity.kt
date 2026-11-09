@@ -4,21 +4,40 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.arcnova.app.engine.ArchiveFormat
 import com.arcnova.app.engine.ArchiveFormatDetector
 import com.arcnova.app.engine.ArchiveSignatureDetector
 import com.arcnova.app.engine.ArchiveSource
-import com.arcnova.app.engine.WindowsExecutableDetector
-import com.arcnova.app.engine.WindowsInstallerDetector
+import com.arcnova.app.engine.ExtractionPolicy
+import com.arcnova.app.engine.ZipExtractionEngine
+import com.arcnova.app.engine.ZipExtractionProgress
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : Activity() {
     private lateinit var fileLabel: TextView
+    private lateinit var statusLabel: TextView
+    private lateinit var chooseFolderButton: Button
+    private lateinit var extractButton: Button
+    private lateinit var cancelButton: Button
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val worker = Executors.newSingleThreadExecutor()
+    private val cancelRequested = AtomicBoolean(false)
     private val requestPick = 1001
+    private val requestFolder = 1002
     private var selectedArchive: ArchiveSource? = null
+    private var destinationTree: Uri? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,17 +46,43 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(28, 48, 28, 24)
         }
-        root.addView(TextView(this).apply { text = "ArcNova"; textSize = 32f; gravity = Gravity.CENTER })
         root.addView(TextView(this).apply {
-            text = "Android archive research"; textSize = 16f
+            text = "ArcNova"; textSize = 32f; gravity = Gravity.CENTER
+        })
+        root.addView(TextView(this).apply {
+            text = "Archive manager • Android"; textSize = 16f
             gravity = Gravity.CENTER; setPadding(0, 8, 0, 28)
         })
-        root.addView(Button(this).apply { text = "Choose file"; setOnClickListener { pickFile() } })
-        fileLabel = TextView(this).apply { text = "No file selected"; textSize = 14f; setPadding(0, 20, 0, 20) }
+        root.addView(Button(this).apply {
+            text = "Choose archive"; setOnClickListener { pickFile() }
+        })
+        fileLabel = TextView(this).apply {
+            text = "No file selected"; textSize = 14f; setPadding(0, 18, 0, 12)
+        }
         root.addView(fileLabel)
+        chooseFolderButton = Button(this).apply {
+            text = "Choose extraction folder"
+            isEnabled = false
+            setOnClickListener { pickDestination() }
+        }
+        root.addView(chooseFolderButton)
+        extractButton = Button(this).apply {
+            text = "Extract ZIP"; isEnabled = false
+            setOnClickListener { startExtraction() }
+        }
+        root.addView(extractButton)
+        cancelButton = Button(this).apply {
+            text = "Cancel"; isEnabled = false
+            setOnClickListener { cancelRequested.set(true); statusLabel.text = "Cancelling…" }
+        }
+        root.addView(cancelButton)
+        statusLabel = TextView(this).apply {
+            text = "Ready"; textSize = 14f; setPadding(0, 18, 0, 0)
+        }
+        root.addView(statusLabel)
         root.addView(TextView(this).apply {
-            text = "Engine status\nSREP: not implemented\nLOLZ: not implemented\nExtraction: unavailable in this build"
-            textSize = 14f
+            text = "ZIP extraction is available. Other formats are detected for future engine support."
+            textSize = 12f; setPadding(0, 24, 0, 0)
         })
         setContentView(root)
     }
@@ -51,103 +96,171 @@ class MainActivity : Activity() {
         startActivityForResult(intent, requestPick)
     }
 
+    private fun pickDestination() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        }
+        startActivityForResult(intent, requestFolder)
+    }
+
     @Deprecated("Platform document picker retained for broad compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != requestPick) return
-        if (resultCode != RESULT_OK) { fileLabel.text = "No file selected"; return }
-        val uri = data?.data ?: run { fileLabel.text = "Could not read the selected file reference."; return }
-        retainReadPermission(uri, data.flags)
-        selectedArchive = readArchiveSource(uri)
-        val source = selectedArchive ?: run { fileLabel.text = "Selected file could not be inspected."; return }
-
-        val extensionHint = ArchiveFormatDetector.detect(source.displayName)
-        val prefix = readPrefix(uri)
-        val signature = prefix?.let(ArchiveSignatureDetector::detect)
-        val executable = prefix?.let(WindowsExecutableDetector::inspect)
-        val installerKind = WindowsInstallerDetector.detect(source.displayName, prefix)
-        val signatureLabel = if (signature == null) "Could not read file header" else signature.label
-        val verdict = when {
-            signature == null -> "Header inspection unavailable"
-            signature == com.arcnova.app.engine.ArchiveFormat.UNKNOWN -> "No recognized signature"
-            extensionHint.format == com.arcnova.app.engine.ArchiveFormat.UNKNOWN -> "Header identifies format"
-            extensionHint.format == signature -> "Extension and header agree"
-            else -> "Extension/header mismatch"
-        }
-        val exeSummary = when (executable?.result) {
-            WindowsExecutableDetector.Result.PE_EXECUTABLE -> buildString {
-                append("Valid PE header (preliminary)")
-                append("\nArchitecture: "); append(executable.architecture)
-                append("\nPE format: "); append(executable.optionalHeader)
-                append("\nSubsystem: "); append(executable.subsystem)
-                append("\nDLL: "); append(if (executable.isDll) "Yes" else "No")
+        if (resultCode != RESULT_OK || data?.data == null) return
+        val uri = data.data!!
+        if (requestCode == requestPick) {
+            retainPermission(uri, data.flags, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            selectedArchive = readArchiveSource(uri)
+            val source = selectedArchive ?: run {
+                fileLabel.text = "Could not inspect selected file"; return
             }
-            WindowsExecutableDetector.Result.MZ_HEADER_ONLY -> "MZ header found; PE header not available in inspected prefix"
-            WindowsExecutableDetector.Result.INVALID_PE_OFFSET -> "MZ found, but PE offset/signature is invalid"
-            WindowsExecutableDetector.Result.NOT_EXECUTABLE -> "No Windows MZ executable signature"
-            null -> "Executable header inspection unavailable"
-        }
-        fileLabel.text = buildString {
-            append("Selected: "); append(source.displayName ?: "Unknown name")
-            append("\nSize: "); append(source.declaredSizeBytes?.let(::formatBytes) ?: "Unknown")
-            append("\nMIME: "); append(contentResolver.getType(uri) ?: "Unknown")
-            append("\nExtension hint: "); append(extensionHint.format.label)
-            append("\nHeader signature: "); append(signatureLabel)
-            append("\nArchive result: "); append(verdict)
-            append("\nWindows EXE analysis: "); append(exeSummary)
-            append("\nInstaller classification (heuristic): "); append(installerKind)
-            append("\nNote: header checks are preliminary, not full validation.")
-            append("\nNo installer execution or extraction is connected yet.")
+            val extension = ArchiveFormatDetector.detect(source.displayName)
+            val signature = readPrefix(uri)?.let(ArchiveSignatureDetector::detect)
+            val supported = extension.format == ArchiveFormat.ZIP || signature == ArchiveFormat.ZIP
+            fileLabel.text = buildString {
+                append("Selected: "); append(source.displayName ?: "Unknown")
+                append("\nSize: "); append(source.declaredSizeBytes?.let(::formatBytes) ?: "Unknown")
+                append("\nDetected extension: "); append(extension.format.label)
+                append("\nHeader: "); append(signature?.label ?: "Unavailable")
+                append("\nZIP extraction: "); append(if (supported) "Supported" else "Not supported yet")
+            }
+            extractButton.isEnabled = supported
+            chooseFolderButton.isEnabled = supported
+            statusLabel.text = "Choose a destination folder to continue."
+        } else if (requestCode == requestFolder) {
+            retainPermission(uri, data.flags,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            destinationTree = uri
+            statusLabel.text = "Destination folder selected."
         }
     }
 
-    private fun readPrefix(uri: Uri): ByteArray? {
-        return runCatching {
-            contentResolver.openInputStream(uri)?.use { input ->
-                val prefix = ByteArray(65536)
-                var count = 0
-                while (count < prefix.size) {
-                    val read = input.read(prefix, count, prefix.size - count)
-                    if (read < 0) break
-                    if (read == 0) continue
-                    count += read
+    private fun startExtraction() {
+        val source = selectedArchive ?: return
+        val tree = destinationTree ?: run {
+            statusLabel.text = "Choose an extraction folder first."; return
+        }
+        setBusy(true)
+        cancelRequested.set(false)
+        statusLabel.text = "Preparing ZIP extraction…"
+        worker.execute {
+            val staging = File(cacheDir, "arcnova-extract-${System.currentTimeMillis()}")
+            try {
+                val input = contentResolver.openInputStream(source.uri)
+                    ?: throw IllegalStateException("Cannot open selected archive")
+                val result = input.use {
+                    ZipExtractionEngine.extract(
+                        it, staging, ExtractionPolicy(),
+                        cancellationRequested = { cancelRequested.get() },
+                        onProgress = { progress -> postProgress(progress) }
+                    )
                 }
-                prefix.copyOf(count)
+                if (cancelRequested.get()) throw InterruptedException("Extraction cancelled")
+                val copied = copyDirectoryToTree(staging, tree)
+                mainHandler.post {
+                    statusLabel.text = "Done: ${result.filesExtracted} files, ${formatBytes(result.bytesWritten)} extracted. Copied $copied items."
+                    setBusy(false)
+                }
+            } catch (error: Exception) {
+                mainHandler.post {
+                    statusLabel.text = when (error) {
+                        is InterruptedException -> "Extraction cancelled."
+                        else -> "Extraction failed: ${error.message ?: error.javaClass.simpleName}"
+                    }
+                    setBusy(false)
+                }
+            } finally {
+                staging.deleteRecursively()
             }
-        }.getOrNull()
-    }
-
-    private fun retainReadPermission(uri: Uri, resultFlags: Int) {
-        val readGranted = resultFlags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
-        val persistableGranted = resultFlags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION != 0
-        if (readGranted && persistableGranted) runCatching {
-            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     }
 
-    private fun readArchiveSource(uri: Uri): ArchiveSource? {
+    private fun postProgress(progress: ZipExtractionProgress) {
+        mainHandler.post {
+            statusLabel.text = "Extracting: ${progress.currentEntry}\nFiles: ${progress.filesExtracted} • ${formatBytes(progress.bytesWritten)}"
+        }
+    }
+
+    private fun copyDirectoryToTree(source: File, treeUri: Uri): Int {
+        val rootId = DocumentsContract.getTreeDocumentId(treeUri)
+        val rootUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, rootId)
+        return copyChildren(source, rootUri)
+    }
+
+    private fun copyChildren(sourceDir: File, parentUri: Uri): Int {
+        var copied = 0
+        sourceDir.listFiles()?.forEach { child ->
+            if (cancelRequested.get()) throw InterruptedException("Copy cancelled")
+            val mime = if (child.isDirectory) "vnd.android.document/directory" else "application/octet-stream"
+            val created = DocumentsContract.createDocument(contentResolver, parentUri, mime, child.name)
+                ?: throw IllegalStateException("Cannot create destination item: ${child.name}")
+            if (child.isDirectory) {
+                copied += copyChildren(child, created)
+            } else {
+                contentResolver.openOutputStream(created, "w")?.use { output ->
+                    FileInputStream(child).use { input -> input.copyTo(output, 64 * 1024) }
+                } ?: throw IllegalStateException("Cannot write destination file: ${child.name}")
+                copied++
+            }
+        }
+        return copied
+    }
+
+    private fun setBusy(busy: Boolean) {
+        extractButton.isEnabled = !busy && selectedArchive != null && destinationTree != null
+        chooseFolderButton.isEnabled = !busy && selectedArchive != null
+        cancelButton.isEnabled = busy
+    }
+
+    private fun retainPermission(uri: Uri, flags: Int, requested: Int) {
+        val granted = flags and requested
+        val persistable = flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION != 0
+        if (persistable && granted != 0) runCatching {
+            contentResolver.takePersistableUriPermission(uri, granted)
+        }
+    }
+
+    private fun readPrefix(uri: Uri): ByteArray? = runCatching {
+        contentResolver.openInputStream(uri)?.use { input ->
+            val bytes = ByteArray(65536)
+            var count = 0
+            while (count < bytes.size) {
+                val read = input.read(bytes, count, bytes.size - count)
+                if (read < 0) break
+                if (read > 0) count += read
+            }
+            bytes.copyOf(count)
+        }
+    }.getOrNull()
+
+    private fun readArchiveSource(uri: Uri): ArchiveSource? = runCatching {
         val projection = arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE)
-        return runCatching {
-            var name: String? = null
-            var size: Long? = null
-            contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
-                    if (nameIndex >= 0 && !cursor.isNull(nameIndex)) name = cursor.getString(nameIndex)
-                    if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) size = cursor.getLong(sizeIndex).takeIf { it >= 0L }
-                }
+        var name: String? = null
+        var size: Long? = null
+        contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                if (nameIndex >= 0 && !cursor.isNull(nameIndex)) name = cursor.getString(nameIndex)
+                if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) size = cursor.getLong(sizeIndex).takeIf { it >= 0L }
             }
-            ArchiveSource(uri, name, size)
-        }.getOrNull()
-    }
+        }
+        ArchiveSource(uri, name, size)
+    }.getOrNull()
 
     private fun formatBytes(bytes: Long): String {
         if (bytes < 1024L) return "$bytes B"
         val units = arrayOf("KB", "MB", "GB", "TB")
         var value = bytes.toDouble()
-        var unitIndex = -1
-        do { value /= 1024.0; unitIndex++ } while (value >= 1024.0 && unitIndex < units.lastIndex)
-        return String.format(java.util.Locale.US, "%.2f %s", value, units[unitIndex])
+        var index = -1
+        do { value /= 1024.0; index++ } while (value >= 1024.0 && index < units.lastIndex)
+        return String.format(java.util.Locale.US, "%.2f %s", value, units[index])
+    }
+
+    override fun onDestroy() {
+        cancelRequested.set(true)
+        worker.shutdownNow()
+        super.onDestroy()
     }
 }
