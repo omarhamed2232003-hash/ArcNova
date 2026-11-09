@@ -1,6 +1,12 @@
 package com.arcnova.app.engine
 
-/** Empty until a compatible, legally redistributable decoder is verified. */
+/**
+ * Central registry for codec implementations.
+ *
+ * Kept empty until an engine passes license review and conformance tests.
+ * Archive container readers and codecs will be registered separately.
+ */
 object EngineRegistry {
-    val availableEngines: List<ArchiveEngine> = emptyList()
+    val availableCodecs: List<CodecEngine> = emptyList()
+    val availableArchiveEngines: List<ArchiveEngine> = emptyList()
 }
