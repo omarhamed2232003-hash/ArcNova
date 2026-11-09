@@ -24,33 +24,45 @@ class ZipExtractionEngineTest {
     }
 
 
-    private fun corruptLocalHeaderCrc(bytes: ByteArray, entryName: String): ByteArray {
+    private fun corruptDataDescriptorCrc(bytes: ByteArray, entryName: String): ByteArray {
         val corrupted = bytes.copyOf()
-        fun unsignedShort(offset: Int): Int =
+        fun u16(offset: Int): Int =
             (corrupted[offset].toInt() and 0xff) or
                 ((corrupted[offset + 1].toInt() and 0xff) shl 8)
+        fun u32(offset: Int): Long =
+            (corrupted[offset].toLong() and 0xff) or
+                ((corrupted[offset + 1].toLong() and 0xff) shl 8) or
+                ((corrupted[offset + 2].toLong() and 0xff) shl 16) or
+                ((corrupted[offset + 3].toLong() and 0xff) shl 24)
 
         var offset = 0
-        while (offset <= corrupted.size - 30) {
-            val signature = (corrupted[offset].toInt() and 0xff) or
-                ((corrupted[offset + 1].toInt() and 0xff) shl 8) or
-                ((corrupted[offset + 2].toInt() and 0xff) shl 16) or
-                ((corrupted[offset + 3].toInt() and 0xff) shl 24)
-            if (signature == 0x04034b50) {
-                val nameLength = unsignedShort(offset + 26)
-                val extraLength = unsignedShort(offset + 28)
-                val nameStart = offset + 30
-                val name = String(corrupted, nameStart, nameLength, Charsets.UTF_8)
+        while (offset <= corrupted.size - 46) {
+            if (u32(offset) == 0x02014b50L) {
+                val compressedSize = u32(offset + 20)
+                val nameLength = u16(offset + 28)
+                val extraLength = u16(offset + 30)
+                val commentLength = u16(offset + 32)
+                val localHeaderOffset = u32(offset + 42).toInt()
+                val name = String(corrupted, offset + 46, nameLength, Charsets.UTF_8)
                 if (name == entryName) {
-                    corrupted[offset + 14] = (corrupted[offset + 14].toInt() xor 0x01).toByte()
+                    val localNameLength = u16(localHeaderOffset + 26)
+                    val localExtraLength = u16(localHeaderOffset + 28)
+                    val dataEnd = localHeaderOffset + 30 + localNameLength +
+                        localExtraLength + compressedSize.toInt()
+                    val descriptorOffset = if (u32(dataEnd) == 0x08074b50L) {
+                        dataEnd + 4
+                    } else {
+                        dataEnd
+                    }
+                    corrupted[descriptorOffset] = (corrupted[descriptorOffset].toInt() xor 0x01).toByte()
                     return corrupted
                 }
-                offset = nameStart + nameLength + extraLength
+                offset += 46 + nameLength + extraLength + commentLength
             } else {
                 offset++
             }
         }
-        throw AssertionError("Local ZIP header not found for $entryName")
+        throw AssertionError("Central directory entry not found for $entryName")
     }
 
     private fun tempDir(): File = createTempDir(prefix = "arcnova-zip-test-")
@@ -368,7 +380,7 @@ class ZipExtractionEngineTest {
             "first/complete.txt" to "must be rolled back".toByteArray(),
             "second/corrupt.txt" to "CRC must fail".toByteArray()
         )
-        val corruptArchive = corruptLocalHeaderCrc(validArchive, "second/corrupt.txt")
+        val corruptArchive = corruptDataDescriptorCrc(validArchive, "second/corrupt.txt")
         try {
             org.junit.Assert.assertThrows(java.util.zip.ZipException::class.java) {
                 ZipExtractionEngine.extract(ByteArrayInputStream(corruptArchive), dir)
