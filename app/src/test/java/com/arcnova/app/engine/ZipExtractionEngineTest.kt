@@ -65,6 +65,26 @@ class ZipExtractionEngineTest {
         throw AssertionError("Central directory entry not found for $entryName")
     }
 
+    private fun truncateBeforeCentralDirectory(bytes: ByteArray, bytesToRemove: Int): ByteArray {
+        fun u32(offset: Int): Long =
+            (bytes[offset].toLong() and 0xff) or
+                ((bytes[offset + 1].toLong() and 0xff) shl 8) or
+                ((bytes[offset + 2].toLong() and 0xff) shl 16) or
+                ((bytes[offset + 3].toLong() and 0xff) shl 24)
+
+        var centralDirectoryOffset = -1
+        for (offset in 0..bytes.size - 4) {
+            if (u32(offset) == 0x02014b50L) {
+                centralDirectoryOffset = offset
+                break
+            }
+        }
+        check(centralDirectoryOffset > bytesToRemove) {
+            "Central directory not found far enough into the archive"
+        }
+        return bytes.copyOf(centralDirectoryOffset - bytesToRemove)
+    }
+
     private fun tempDir(): File = createTempDir(prefix = "arcnova-zip-test-")
 
     @Test fun extractsFilesAndReportsTotals() {
@@ -387,6 +407,32 @@ class ZipExtractionEngineTest {
             }
             assertFalse(File(dir, "first/complete.txt").exists())
             assertFalse(File(dir, "second/corrupt.txt").exists())
+            assertFalse(File(dir, "first").exists())
+            assertFalse(File(dir, "second").exists())
+            assertEquals("keep this", File(existing, "important.txt").readText())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun truncatedCompressedPayloadRollsBackEarlierOutputAndPreservesExistingFiles() {
+        val dir = tempDir()
+        val existing = File(dir, "existing")
+        existing.mkdirs()
+        File(existing, "important.txt").writeText("keep this")
+        val payload = ByteArray(256 * 1024).also { java.util.Random(42L).nextBytes(it) }
+        val completeArchive = archive(
+            "first/complete.txt" to "must be rolled back".toByteArray(),
+            "second/truncated.bin" to payload
+        )
+        // Remove bytes from the compressed payload, not merely from the central directory.
+        val truncatedArchive = truncateBeforeCentralDirectory(completeArchive, 1024)
+        try {
+            org.junit.Assert.assertThrows(java.io.EOFException::class.java) {
+                ZipExtractionEngine.extract(ByteArrayInputStream(truncatedArchive), dir)
+            }
+            assertFalse(File(dir, "first/complete.txt").exists())
+            assertFalse(File(dir, "second/truncated.bin").exists())
             assertFalse(File(dir, "first").exists())
             assertFalse(File(dir, "second").exists())
             assertEquals("keep this", File(existing, "important.txt").readText())
