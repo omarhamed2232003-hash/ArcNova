@@ -6,8 +6,15 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import java.util.zip.CRC32
 
 class ZipInspectionEngineTest {
+    private fun ByteArray.indexOfSubsequence(needle: ByteArray): Int =
+        indices.firstOrNull { start ->
+            start + needle.size <= size &&
+                needle.indices.all { index -> this[start + index] == needle[index] }
+        } ?: -1
+
     private fun archive(vararg files: Pair<String, ByteArray>): ByteArray {
         val output = ByteArrayOutputStream()
         ZipOutputStream(output).use { zip ->
@@ -106,13 +113,23 @@ class ZipInspectionEngineTest {
     @Test fun centralDirectoryInspectionReportsCrcMismatchAsIntegrityFailure() {
         val cache = createTempDir(prefix = "arcnova-inspect-crc-")
         try {
-            val valid = archive("payload.txt" to "original".toByteArray())
+            val payload = "original".toByteArray()
+            val output = ByteArrayOutputStream()
+            ZipOutputStream(output).use { zip ->
+                val crc = CRC32().apply { update(payload) }
+                val entry = ZipEntry("payload.txt").apply {
+                    method = ZipEntry.STORED
+                    size = payload.size.toLong()
+                    compressedSize = payload.size.toLong()
+                    this.crc = crc.value
+                }
+                zip.putNextEntry(entry)
+                zip.write(payload)
+                zip.closeEntry()
+            }
+            val valid = output.toByteArray()
             val corrupted = valid.clone()
-            val needle = "original".toByteArray()
-            val payloadOffset = valid.indices.firstOrNull { start ->
-                start + needle.size <= valid.size &&
-                    needle.indices.all { index -> valid[start + index] == needle[index] }
-            } ?: -1
+            val payloadOffset = valid.indexOfSubsequence(payload)
             assertTrue(payloadOffset >= 0)
             corrupted[payloadOffset] = 'X'.code.toByte()
             try {
