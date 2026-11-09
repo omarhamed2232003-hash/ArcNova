@@ -156,6 +156,86 @@ class ZipExtractionEngineTest {
         }
     }
 
+    @Test fun rollsBackEarlierFilesAndCreatedDirectoriesWhenLaterEntryFails() {
+        val dir = tempDir()
+        try {
+            org.junit.Assert.assertThrows(UnsafeArchivePathException::class.java) {
+                ZipExtractionEngine.extract(
+                    ByteArrayInputStream(archive(
+                        "nested/first.txt" to "keep out of partial results".toByteArray(),
+                        "../escape.txt" to byteArrayOf(1)
+                    )),
+                    dir
+                )
+            }
+            assertFalse(File(dir, "nested/first.txt").exists())
+            assertFalse(File(dir, "nested").exists())
+            assertTrue(dir.listFiles().orEmpty().isEmpty())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun rollbackPreservesPreExistingFilesAndDirectories() {
+        val dir = tempDir()
+        val existing = File(dir, "existing")
+        existing.mkdirs()
+        File(existing, "important.txt").writeText("do not delete")
+        try {
+            org.junit.Assert.assertThrows(UnsafeArchivePathException::class.java) {
+                ZipExtractionEngine.extract(
+                    ByteArrayInputStream(archive(
+                        "existing/new.txt" to "temporary".toByteArray(),
+                        "../escape.txt" to byteArrayOf(1)
+                    )),
+                    dir
+                )
+            }
+            assertEquals("do not delete", File(existing, "important.txt").readText())
+            assertTrue(existing.isDirectory)
+            assertFalse(File(existing, "new.txt").exists())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun cancellationAfterACompletedEntryRollsBackTheWholeOperation() {
+        val dir = tempDir()
+        var cancel = false
+        try {
+            org.junit.Assert.assertThrows(ZipExtractionCancelledException::class.java) {
+                ZipExtractionEngine.extract(
+                    ByteArrayInputStream(archive(
+                        "first.txt" to byteArrayOf(1, 2, 3),
+                        "second.txt" to byteArrayOf(4, 5, 6)
+                    )),
+                    dir,
+                    cancellationRequested = { cancel },
+                    onProgress = { cancel = true }
+                )
+            }
+            assertTrue(dir.listFiles().orEmpty().isEmpty())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun progressCallbackFailureRollsBackCreatedOutput() {
+        val dir = tempDir()
+        try {
+            org.junit.Assert.assertThrows(IllegalStateException::class.java) {
+                ZipExtractionEngine.extract(
+                    ByteArrayInputStream(archive("nested/result.txt" to byteArrayOf(1, 2, 3))),
+                    dir,
+                    onProgress = { throw IllegalStateException("simulated observer failure") }
+                )
+            }
+            assertTrue(dir.listFiles().orEmpty().isEmpty())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     @Test fun leavesCallerOwnedInputStreamOpen() {
         val dir = tempDir()
         var closed = false
