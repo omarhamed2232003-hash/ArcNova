@@ -161,3 +161,39 @@ When reporting to the owner:
 
 **Repository:** https://github.com/omarhamed2232003-hash/ArcNova  
 **Primary branch:** `main`
+
+
+## 11. Product quality bar and UI/desktop experience — owner-confirmed direction
+
+This section records explicit product-owner decisions from 2026-11-09 and is as important as the product mission above. Preserve both this section and the broad product mission; do not reduce ArcNova to a basic archive utility.
+
+### Quality bar
+- ArcNova must be a genuinely premium, professional application. The owner explicitly referenced the visual quality and polish achieved in the ATLAS website as the minimum quality ambition. Do not ship a generic stack of default grey Android buttons as the intended product UI.
+- The selected visual direction is **modern Windows-inspired desktop software**, not retro/classic Windows. It should feel powerful, refined, contemporary, cohesive, and intentional.
+- Target a rich design system: coherent brand palette, dark and light themes, typography hierarchy, iconography, responsive layouts, polished cards/panels, purposeful gradients/material treatments, smooth transitions, meaningful motion, and carefully designed empty/loading/progress/error states.
+- Motion must be functional and refined: animated navigation/tab transitions, drawers or side panels that slide in/out, expandable panels, dialogs, progress feedback, and subtle interaction states. Avoid decorative animation that harms performance or accessibility.
+- The owner wants a desktop-like interaction model where useful: pointer/mouse support, keyboard navigation and shortcuts, context menus, drag-and-drop, resizable or multi-pane work areas where appropriate, and window/panel behavior. Adapt responsively to Android phones and tablets; do not make the mobile layout a cramped desktop imitation.
+- The UI must represent the real capability level accurately. Planned engines must not appear as working features; show clear availability/coming-soon states until implemented and validated.
+
+### Windows-style workspace and installer experience
+- Because ArcNova will inspect and process Windows files and may eventually run supported Windows installers/software, plan a modern Windows-inspired workspace rather than an old-fashioned Android utility screen.
+- When installer/runtime capabilities are implemented, design a guided setup experience: installer identity and detected technology, compatibility/readiness checks, destination/options, component selection where applicable, progress, detailed logs, errors/recovery, completion, and launch action only when supported.
+- A desktop-like mode/shell is a product direction, not an immediate prerequisite to every file-engine task. Establish architectural seams now (navigation, tool panels, task/progress center, file/workspace model, input abstraction) so it can be introduced without rewriting the application later.
+- Do not build a fake Windows desktop or simulate successful installation. Desktop-like UI must be backed by real operations and honest capability states.
+
+### Reuse of external code and projects
+- The owner explicitly authorizes studying and reusing third-party code where legally permitted, including projects such as Bannerlator, to reach the strongest practical result; do not assume everything must be reinvented.
+- Prefer mature, tested, maintained components when their license, Android ARM64 compatibility, provenance, security, and redistribution terms are acceptable. Adapt and integrate them into ArcNova's own modular orchestration and user experience.
+- Preserve copyright notices, licenses, source-offer obligations, and attribution. Do not copy code merely because it is publicly visible. No proprietary/closed-source binaries or restrictive codec plugins (including SREP/LOLZ/CLS/Oodle components) may be bundled without the required explicit permission/license.
+- Do not wrap another app and call it ArcNova. ArcNova must own its file workflows, capability registry, operation orchestration, task state, diagnostics, profiles, and coherent UI even when it delegates a lawful engine.
+
+### Priority discipline: neither defer essentials nor build premature polish
+At every step, choose work by dependency, risk reduction, user value, and readiness:
+1. Do now when it unblocks architecture or prevents expensive rework: define UI/design-system and navigation foundations; keep engine/UI boundaries clean; model task state, progress, cancellation, diagnostics, and capability status; verify Android ARM64/device constraints; check licenses before dependency choices.
+2. Do now when it delivers the next dependable foundation: complete generic file analysis (metadata, signature-vs-extension mismatch, streaming SHA-256, safe reporting) and streaming file comparison; expand tests and validate on device where practical.
+3. Do alongside engine development when a capability becomes real: add its UI flow, progress, error handling, and integration tests. Do not wait until every format is complete to expose all useful functionality.
+4. Defer expensive desktop-shell visuals, full mouse/keyboard workspace, elaborate installer wizard, and runtime-specific UI until the corresponding underlying operations and architecture are sufficiently real. However, preserve their design and architectural requirements now.
+5. Do not spend time on premature visual flourishes, fake buttons, unsupported format claims, a simulated Windows environment, or large UI rewrites that do not advance a real user workflow.
+6. Do not postpone security, licensing, storage limits, cancellation, rollback, diagnostics, or device-performance work when it is a prerequisite for a safe/reliable engine.
+
+The owner explicitly said the premium interface and Windows-inspired desktop direction need not be the immediate task if a more important foundation comes first, but essential work must not be forgotten or unnecessarily postponed. Make the next-step choice yourself based on the actual repository state; do not ask the owner to re-state this direction.
