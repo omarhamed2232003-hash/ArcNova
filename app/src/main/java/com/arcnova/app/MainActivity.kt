@@ -2,6 +2,9 @@ package com.arcnova.app
 
 import android.app.AlertDialog
 import android.net.Uri
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -10,6 +13,7 @@ import android.provider.OpenableColumns
 import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
@@ -63,57 +67,164 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val root = LinearLayout(this).apply {
+        window.statusBarColor = Color.rgb(11, 17, 32)
+        window.navigationBarColor = Color.rgb(11, 17, 32)
+
+        val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(28, 48, 28, 24)
+            setPadding(dp(22), dp(28), dp(22), dp(28))
+            setBackgroundColor(Color.rgb(11, 17, 32))
         }
-        root.addView(TextView(this).apply {
-            text = "ArcNova"; textSize = 32f; gravity = Gravity.CENTER
+        val scroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(page)
+        }
+
+        page.addView(TextView(this).apply {
+            text = "ARCNOVA"
+            textSize = 13f
+            letterSpacing = 0.22f
+            setTextColor(Color.rgb(93, 167, 255))
+            setTypeface(typeface, Typeface.BOLD)
         })
-        root.addView(TextView(this).apply {
-            text = "Universal file & software toolkit • Android"; textSize = 16f
-            gravity = Gravity.CENTER; setPadding(0, 8, 0, 28)
+        page.addView(TextView(this).apply {
+            text = "Your files.\nUnder control."
+            textSize = 32f
+            setTextColor(Color.WHITE)
+            setTypeface(typeface, Typeface.BOLD)
+            setPadding(0, dp(10), 0, dp(6))
         })
-        root.addView(Button(this).apply {
-            text = "Choose archive"; setOnClickListener { pickFile() }
+        page.addView(TextView(this).apply {
+            text = "A safer workspace for archive extraction."
+            textSize = 14f
+            setTextColor(Color.rgb(164, 177, 199))
+            setPadding(0, 0, 0, dp(22))
         })
+
+        val formatsCard = createCard()
+        formatsCard.addView(sectionLabel("SUPPORTED IN THIS BUILD"))
+        formatsCard.addView(TextView(this).apply {
+            text = "ZIP  ·  7Z  ·  TAR  ·  GZIP\nBZIP2  ·  XZ  ·  LZMA"
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            setLineSpacing(dp(5).toFloat(), 1f)
+            setPadding(0, dp(10), 0, 0)
+        })
+        page.addView(formatsCard, matchWrap())
+
+        val fileCard = createCard()
+        fileCard.addView(sectionLabel("01  /  SOURCE FILE"))
+        fileCard.addView(TextView(this).apply {
+            text = "Choose an archive to inspect its format and compatibility."
+            textSize = 14f
+            setTextColor(Color.rgb(164, 177, 199))
+            setPadding(0, dp(8), 0, dp(14))
+        })
+        val chooseFileButton = actionButton("Choose file", true) { pickFile() }
+        fileCard.addView(chooseFileButton, matchWrap())
         fileLabel = TextView(this).apply {
-            text = "No file selected"; textSize = 14f; setPadding(0, 18, 0, 12)
+            text = "No file selected"
+            textSize = 13f
+            setTextColor(Color.rgb(210, 220, 235))
+            setPadding(0, dp(14), 0, 0)
         }
-        root.addView(fileLabel)
-        chooseFolderButton = Button(this).apply {
-            text = "Choose extraction folder"
-            isEnabled = false
-            setOnClickListener { pickDestination() }
-        }
-        root.addView(chooseFolderButton)
-        extractButton = Button(this).apply {
-            text = "Extract ZIP"; isEnabled = false
-            setOnClickListener { startExtraction() }
-        }
-        root.addView(extractButton)
-        inspectButton = Button(this).apply {
-            text = "Inspect ZIP contents"
-            isEnabled = false
-            setOnClickListener { startInspection() }
-        }
-        root.addView(inspectButton)
-        cancelButton = Button(this).apply {
-            text = "Cancel"; isEnabled = false
-            setOnClickListener { cancelRequested.set(true); statusLabel.text = "Cancelling…" }
-        }
-        root.addView(cancelButton)
-        statusLabel = TextView(this).apply {
-            text = "Ready"; textSize = 14f; setPadding(0, 18, 0, 0)
-        }
-        root.addView(statusLabel)
-        root.addView(TextView(this).apply {
-            text = "ZIP, 7z, TAR, GZIP, BZIP2, XZ, and LZMA-alone extraction are available in this engineering build. ZIP inspection remains ZIP-only."
-            textSize = 12f; setPadding(0, 24, 0, 0)
+        fileCard.addView(fileLabel)
+        page.addView(fileCard, matchWrap())
+
+        val destinationCard = createCard()
+        destinationCard.addView(sectionLabel("02  /  DESTINATION"))
+        destinationCard.addView(TextView(this).apply {
+            text = "Select where the extracted files should be saved."
+            textSize = 14f
+            setTextColor(Color.rgb(164, 177, 199))
+            setPadding(0, dp(8), 0, dp(14))
         })
-        setContentView(root)
+        chooseFolderButton = actionButton("Choose destination folder", false) { pickDestination() }.apply {
+            isEnabled = false
+        }
+        destinationCard.addView(chooseFolderButton, matchWrap())
+        page.addView(destinationCard, matchWrap())
+
+        val actionCard = createCard()
+        actionCard.addView(sectionLabel("03  /  ACTIONS"))
+        extractButton = actionButton("Extract files", true) { startExtraction() }.apply {
+            isEnabled = false
+        }
+        actionCard.addView(extractButton, matchWrap())
+        inspectButton = actionButton("Inspect ZIP contents", false) { startInspection() }.apply {
+            isEnabled = false
+        }
+        val inspectParams = matchWrap().apply { topMargin = dp(10) }
+        actionCard.addView(inspectButton, inspectParams)
+        cancelButton = actionButton("Cancel operation", false) {
+            cancelRequested.set(true)
+            statusLabel.text = "Cancelling operation…"
+        }.apply { isEnabled = false }
+        val cancelParams = matchWrap().apply { topMargin = dp(10) }
+        actionCard.addView(cancelButton, cancelParams)
+        page.addView(actionCard, matchWrap())
+
+        val statusCard = createCard()
+        statusCard.addView(sectionLabel("ACTIVITY"))
+        statusLabel = TextView(this).apply {
+            text = "Ready when you are."
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            setPadding(0, dp(10), 0, 0)
+        }
+        statusCard.addView(statusLabel)
+        page.addView(statusCard, matchWrap())
+
+        page.addView(TextView(this).apply {
+            text = "ENGINEERING PREVIEW  •  ZIP INSPECTION ONLY"
+            textSize = 10f
+            letterSpacing = 0.08f
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(111, 129, 154))
+            setPadding(0, dp(20), 0, 0)
+        })
+        setContentView(scroll)
     }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    private fun createCard(): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(18), dp(18), dp(18), dp(18))
+        background = GradientDrawable().apply {
+            setColor(Color.rgb(22, 32, 51))
+            cornerRadius = dp(18).toFloat()
+            setStroke(dp(1), Color.rgb(39, 54, 78))
+        }
+    }
+
+    private fun sectionLabel(value: String) = TextView(this).apply {
+        text = value
+        textSize = 11f
+        letterSpacing = 0.12f
+        setTextColor(Color.rgb(110, 174, 255))
+        setTypeface(typeface, Typeface.BOLD)
+    }
+
+    private fun actionButton(value: String, primary: Boolean, action: () -> Unit) =
+        Button(this).apply {
+            text = value
+            isAllCaps = false
+            textSize = 14f
+            setTextColor(if (primary) Color.WHITE else Color.rgb(214, 226, 244))
+            background = GradientDrawable().apply {
+                setColor(if (primary) Color.rgb(42, 116, 220) else Color.rgb(31, 47, 70))
+                cornerRadius = dp(12).toFloat()
+                if (!primary) setStroke(dp(1), Color.rgb(55, 75, 105))
+            }
+            setPadding(dp(12), dp(5), dp(12), dp(5))
+            setOnClickListener { action() }
+        }
+
+    private fun matchWrap() = LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT,
+        LinearLayout.LayoutParams.WRAP_CONTENT
+    ).apply { bottomMargin = dp(14) }
 
     private fun pickFile() {
         openArchiveDocument.launch(arrayOf("*/*"))
