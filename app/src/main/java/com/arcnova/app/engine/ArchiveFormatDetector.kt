@@ -29,7 +29,7 @@ data class ArchiveDetection(
             signatureFormat?.takeIf { it != ArchiveFormat.UNKNOWN } ?: ArchiveFormat.UNKNOWN
         }
         return resolved.takeIf {
-            it == ArchiveFormat.ZIP || it == ArchiveFormat.TAR || it == ArchiveFormat.GZIP
+            it == ArchiveFormat.ZIP || it == ArchiveFormat.SEVEN_ZIP || it == ArchiveFormat.TAR || it == ArchiveFormat.GZIP
         }
     }
 

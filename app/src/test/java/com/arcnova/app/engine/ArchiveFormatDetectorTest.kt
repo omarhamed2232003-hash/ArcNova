@@ -90,6 +90,16 @@ class ArchiveFormatDetectorTest {
         assertEquals(null, signatureOnlyTar.supportedExtractionFormat(ArchiveFormat.UNKNOWN))
     }
 
+    @Test fun resolvesSevenZipForExtractionAndRejectsMultipartVolumes() {
+        val sevenZip = ArchiveFormatDetector.detect("archive.7z")
+        assertEquals(ArchiveFormat.SEVEN_ZIP, sevenZip.supportedExtractionFormat(null))
+        assertEquals(ArchiveFormat.SEVEN_ZIP, sevenZip.supportedExtractionFormat(ArchiveFormat.SEVEN_ZIP))
+        assertEquals(null, sevenZip.supportedExtractionFormat(ArchiveFormat.RAR))
+
+        val firstVolume = ArchiveFormatDetector.detect("archive.7z.001")
+        assertEquals(null, firstVolume.supportedExtractionFormat(ArchiveFormat.SEVEN_ZIP))
+    }
+
     @Test fun supportedExtractionResolutionRejectsMultipartAndUnsupportedFormats() {
         val multipartZip = ArchiveFormatDetector.detect("backup.zip.001")
         assertEquals(null, multipartZip.supportedExtractionFormat(ArchiveFormat.ZIP))

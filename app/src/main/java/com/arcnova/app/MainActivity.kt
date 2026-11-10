@@ -25,6 +25,7 @@ import com.arcnova.app.engine.ZipInspectionEngine
 import com.arcnova.app.engine.ZipExtractionProgress
 import com.arcnova.app.engine.ArchiveExtractionProgress
 import com.arcnova.app.engine.TarGzipExtractionEngine
+import com.arcnova.app.engine.SevenZExtractionEngine
 import com.arcnova.app.engine.ArchiveExtractionCancelledException
 import com.arcnova.app.engine.ZipExtractionCancelledException
 import com.arcnova.app.engine.TreeDocumentStore
@@ -301,6 +302,18 @@ class MainActivity : ComponentActivity() {
                                 onProgress = { progress -> postProgress(progress) }
                             )
                             zip.filesExtracted to zip.bytesWritten
+                        }
+                        ArchiveFormat.SEVEN_ZIP -> {
+                            val sevenZip = SevenZExtractionEngine.extract(
+                                input = stream,
+                                cacheDirectory = cacheDir,
+                                destination = staging,
+                                maxArchiveBytes = MAX_ARCHIVE_INPUT_BYTES,
+                                policy = ExtractionPolicy(),
+                                cancellationRequested = { cancelRequested.get() },
+                                onProgress = { progress -> postProgress(progress) }
+                            )
+                            sevenZip.filesExtracted to sevenZip.bytesWritten
                         }
                         ArchiveFormat.TAR -> {
                             val tar = TarGzipExtractionEngine.extractTar(

@@ -9,8 +9,8 @@ import java.io.InputStream
 /**
  * Owns a bounded seekable copy of a caller-provided archive stream.
  *
- * Commons Compress ZipFile requires random access. This spool keeps archive bytes
- * on private app storage rather than loading the complete archive into memory.
+ * Random-access archive readers require a seekable source. This spool keeps archive
+ * bytes on private app storage rather than loading the complete archive into memory.
  * The caller retains ownership of [input]; the returned handle owns the temp file.
  */
 object SeekableArchiveSpool {
@@ -30,7 +30,7 @@ object SeekableArchiveSpool {
             throw IOException("Archive cache path is not a directory")
         }
 
-        val tempFile = File.createTempFile("arcnova-archive-", ".zip", cacheDirectory)
+        val tempFile = File.createTempFile("arcnova-archive-", ".archive", cacheDirectory)
         var copiedBytes = 0L
         try {
             BufferedOutputStream(FileOutputStream(tempFile)).use { output ->
@@ -72,7 +72,7 @@ object SeekableArchiveSpool {
     }
 }
 
-/** A temporary seekable archive. Close it after the backend has closed its ZipFile. */
+/** A temporary seekable archive. Close it after the backend has closed its reader. */
 class SeekableArchiveFile internal constructor(
     val file: File,
     val sizeBytes: Long
