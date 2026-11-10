@@ -109,7 +109,7 @@ class MainActivity : ComponentActivity() {
         }
         root.addView(statusLabel)
         root.addView(TextView(this).apply {
-            text = "ZIP, 7z, TAR, GZIP, BZIP2, and XZ extraction are available in this engineering build. ZIP inspection remains ZIP-only."
+            text = "ZIP, 7z, TAR, GZIP, BZIP2, XZ, and LZMA-alone extraction are available in this engineering build. ZIP inspection remains ZIP-only."
             textSize = 12f; setPadding(0, 24, 0, 0)
         })
         setContentView(root)
@@ -339,7 +339,7 @@ class MainActivity : ComponentActivity() {
                             )
                             gzip.filesExtracted to gzip.bytesWritten
                         }
-                        ArchiveFormat.BZIP2, ArchiveFormat.XZ -> {
+                        ArchiveFormat.BZIP2, ArchiveFormat.XZ, ArchiveFormat.LZMA -> {
                             val decoded = Bzip2XzExtractionEngine.decompress(
                                 format = format,
                                 input = stream,

@@ -118,8 +118,9 @@ class ArchiveFormatDetectorTest {
         assertEquals(null, xz.supportedExtractionFormat(ArchiveFormat.BZIP2))
 
         val lzma = ArchiveFormatDetector.detect("payload.lzma")
-        assertEquals(ArchiveFormat.UNKNOWN, lzma.format)
-        assertEquals(null, lzma.supportedExtractionFormat(null))
+        assertEquals(ArchiveFormat.LZMA, lzma.format)
+        assertEquals(ArchiveFormat.LZMA, lzma.supportedExtractionFormat(null))
+        assertEquals(null, lzma.supportedExtractionFormat(ArchiveFormat.XZ))
     }
 
     @Test fun preservesRarMultipartFilenameDetection() {

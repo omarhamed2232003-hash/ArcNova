@@ -14,6 +14,10 @@ class Bzip2XzExtractionEngineTest {
         assertDecoded(ArchiveFormat.BZIP2, bzip2("ArcNova BZIP2"))
     }
 
+    @Test fun decompressesLzmaAloneToCallerNamedFile() {
+        assertDecoded(ArchiveFormat.LZMA, lzma("ArcNova LZMA"))
+    }
+
     @Test fun decompressesXzToCallerNamedFile() {
         assertDecoded(ArchiveFormat.XZ, xz("ArcNova XZ"))
     }
@@ -28,6 +32,22 @@ class Bzip2XzExtractionEngineTest {
         val first = xz("first-")
         val second = xz("second")
         assertDecodedBytes(ArchiveFormat.XZ, first + second, "first-second")
+    }
+
+    @Test fun rejectsTruncatedLzmaAndRollsBack() {
+        val destination = tempDir()
+        val encoded = lzma("truncated LZMA payload").dropLast(3).toByteArray()
+        try {
+            assertThrows(Exception::class.java) {
+                Bzip2XzExtractionEngine.decompress(
+                    ArchiveFormat.LZMA, ByteArrayInputStream(encoded), destination,
+                    "payload.bin", 1024 * 1024L
+                )
+            }
+            assertTrue(destination.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+        }
     }
 
     @Test fun rejectsExpansionRatioBeyondConfiguredLimitAndRollsBack() {
@@ -164,6 +184,13 @@ class Bzip2XzExtractionEngineTest {
     private fun bzip2(value: String): ByteArray {
         val output = ByteArrayOutputStream()
         BZip2CompressorOutputStream(output).use { it.write(value.toByteArray()) }
+        return output.toByteArray()
+    }
+
+    private fun lzma(value: String): ByteArray {
+        val bytes = value.toByteArray()
+        val output = ByteArrayOutputStream()
+        LZMAOutputStream(output, LZMA2Options(), bytes.size.toLong()).use { it.write(bytes) }
         return output.toByteArray()
     }
 

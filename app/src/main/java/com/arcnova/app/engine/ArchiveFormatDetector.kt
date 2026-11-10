@@ -3,7 +3,7 @@ package com.arcnova.app.engine
 /** Best-effort filename-based format hint; archive bytes are not inspected. */
 enum class ArchiveFormat(val label: String) {
     ZIP("ZIP"), SEVEN_ZIP("7-Zip"), RAR("RAR"), TAR("TAR"),
-    GZIP("GZIP"), BZIP2("BZIP2"), XZ("XZ"), ZSTANDARD("Zstandard"),
+    GZIP("GZIP"), BZIP2("BZIP2"), XZ("XZ"), LZMA("LZMA-alone"), ZSTANDARD("Zstandard"),
     FREEARC("FreeArc"), WINRK("WinRK"), KGB("KGB"), UHARC("UHARC"),
     ZPAQ("ZPAQ"), DGCA("DGCA"), STUFFIT("StuffIt"),
     UNREAL_PAK("Unreal PAK"), UNREAL_IOSTORE("Unreal IoStore"),
@@ -30,7 +30,7 @@ data class ArchiveDetection(
         }
         return resolved.takeIf {
             it == ArchiveFormat.ZIP || it == ArchiveFormat.SEVEN_ZIP || it == ArchiveFormat.TAR ||
-                it == ArchiveFormat.GZIP || it == ArchiveFormat.BZIP2 || it == ArchiveFormat.XZ
+                it == ArchiveFormat.GZIP || it == ArchiveFormat.BZIP2 || it == ArchiveFormat.XZ || it == ArchiveFormat.LZMA
         }
     }
 
@@ -70,6 +70,7 @@ object ArchiveFormatDetector {
             "gz", "gzip" -> ArchiveFormat.GZIP
             "bz2", "bzip2" -> ArchiveFormat.BZIP2
             "xz" -> ArchiveFormat.XZ
+            "lzma" -> ArchiveFormat.LZMA
             "zst", "zstd" -> ArchiveFormat.ZSTANDARD
             "arc" -> ArchiveFormat.FREEARC
             "rk" -> ArchiveFormat.WINRK

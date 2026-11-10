@@ -2,11 +2,13 @@ package com.arcnova.app.engine
 
 import java.io.File
 import java.io.FileOutputStream
+import java.io.BufferedInputStream
 import java.io.FilterInputStream
 import java.io.IOException
 import java.io.InputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
+import org.tukaani.xz.LZMAInputStream
 
 /**
  * BZIP2 and XZ single-stream decompression.
@@ -29,8 +31,8 @@ object Bzip2XzExtractionEngine {
         cancellationRequested: () -> Boolean = { false },
         onProgress: (ArchiveExtractionProgress) -> Unit = {}
     ): ArchiveExtractionResult {
-        require(format == ArchiveFormat.BZIP2 || format == ArchiveFormat.XZ) {
-            "Only BZIP2 and XZ streams are supported"
+        require(format == ArchiveFormat.BZIP2 || format == ArchiveFormat.XZ || format == ArchiveFormat.LZMA) {
+            "Only BZIP2, XZ, and LZMA-alone streams are supported"
         }
         require(maxInputBytes > 0L) { "maxInputBytes must be positive" }
         require(policy.maxSingleFileBytes >= 0L) { "maxSingleFileBytes must not be negative" }
@@ -79,6 +81,9 @@ object Bzip2XzExtractionEngine {
                     .setDecompressConcatenated(true)
                     .setMemoryLimitKiB(MAX_XZ_MEMORY_KIB)
                     .get()
+                ArchiveFormat.LZMA -> LZMAInputStream(
+                    BufferedInputStream(nonClosing), MAX_XZ_MEMORY_KIB
+                )
                 else -> error("Unsupported format")
             }
         } catch (error: Exception) {
@@ -184,7 +189,7 @@ object Bzip2XzExtractionEngine {
         }
 
         private fun checkCancellation() {
-            if (cancellationRequested()) throw ArchiveExtractionCancelledException(0L)
+            if (cancellationRequested()) throw ArchiveExtractionCancelledException(bytesRead)
         }
 
         override fun close() = Unit
