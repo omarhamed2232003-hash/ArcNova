@@ -233,8 +233,12 @@ class MainActivity : ComponentActivity() {
                 }
             } catch (error: Exception) {
                 mainHandler.post {
-                    statusLabel.text = if (error is com.arcnova.app.engine.ZipInspectionCancelledException) "Inspection cancelled."
-                        else "Inspection failed: ${error.message ?: error.javaClass.simpleName}"
+                    statusLabel.text = when (error) {
+                        is com.arcnova.app.engine.ZipInspectionCancelledException -> "Inspection cancelled."
+                        is com.arcnova.app.engine.ZipInspectionUnsupportedFeatureException ->
+                            "This ZIP uses encryption or a compression method ArcNova cannot read. No files were written."
+                        else -> "Inspection failed: ${error.message ?: error.javaClass.simpleName}"
+                    }
                     setBusy(false)
                 }
             }
@@ -276,6 +280,8 @@ class MainActivity : ComponentActivity() {
                 mainHandler.post {
                     statusLabel.text = when (error) {
                         is InterruptedException, is ZipExtractionCancelledException, is TreeCopyCancelledException -> "Extraction cancelled."
+                        is com.arcnova.app.engine.ZipExtractionUnsupportedFeatureException ->
+                            "Cannot extract this ZIP: it is encrypted or uses an unsupported compression method. No files were committed."
                         else -> "Extraction failed: ${error.message ?: error.javaClass.simpleName}"
                     }
                     setBusy(false)
