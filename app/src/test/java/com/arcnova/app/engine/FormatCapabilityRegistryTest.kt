@@ -8,7 +8,7 @@ class FormatCapabilityRegistryTest {
         val expected = listOf(
             "freearc", "srep", "lolz", "winrk", "kgb", "uharc",
             "zpaq", "dgca", "stuffit", "unreal-pak", "unreal-iostore",
-            "unity-asset-bundle", "source-vpk", "xp3", "rpa", "oodle-kraken"
+            "unity-asset-bundle", "source-vpk", "xp3", "rpa", "cab", "iso9660", "oodle-kraken"
         )
         expected.forEach { id ->
             assertNotNull("Missing roadmap entry: $id", FormatCapabilityRegistry.findById(id))
@@ -31,6 +31,30 @@ class FormatCapabilityRegistryTest {
     @Test fun plannedFormatsNeverClaimInspectionIsAvailable() {
         FormatCapabilityRegistry.all.filter { it.id != "zip" && it.operationSupport[FormatOperation.INSPECT] == SupportLevel.PLANNED }
             .forEach { assertFalse("${it.id} must not claim inspection support", it.supports(FormatOperation.INSPECT)) }
+    }
+
+    @Test fun byteSignatureFormatsAreRegisteredAsDetectOnly() {
+        listOf("unity-asset-bundle", "source-vpk", "xp3", "rpa", "cab", "iso9660").forEach { id ->
+            val capability = FormatCapabilityRegistry.findById(id)!!
+            assertEquals("$id detection should be CI-tested", SupportLevel.IMPLEMENTED_CI_TESTED,
+                capability.operationSupport[FormatOperation.DETECT])
+            assertEquals("$id inspection must remain planned", SupportLevel.PLANNED,
+                capability.operationSupport[FormatOperation.INSPECT])
+            assertEquals("$id extraction must remain planned", SupportLevel.PLANNED,
+                capability.operationSupport[FormatOperation.EXTRACT])
+            assertFalse("$id must not claim extraction", capability.supports(FormatOperation.EXTRACT))
+        }
+    }
+
+    @Test fun signatureDetectedExtensionsResolveToTheSameCapabilityIds() {
+        assertEquals("unity-asset-bundle", FileSignatureDetector.detect("UnityFS\\u0000".toByteArray())!!.id)
+        assertEquals("unity-asset-bundle", FileSignatureDetector.detect("UnityWebData1.0".toByteArray())!!.id)
+        assertEquals("rpa", FileSignatureDetector.detect("RPA-3.0 0000000000000000 00000000\\n".toByteArray())!!.id)
+        val tar = ByteArray(263)
+        "ustar".toByteArray().copyInto(tar, 257)
+        assertEquals("tar", FileSignatureDetector.detect(tar)!!.id)
+        assertEquals("cab", FormatCapabilityRegistry.findByExtension("CAB").single().id)
+        assertEquals("iso9660", FormatCapabilityRegistry.findByExtension(".ISO").single().id)
     }
 
     @Test fun extensionLookupNormalizesDotsAndCase() {
