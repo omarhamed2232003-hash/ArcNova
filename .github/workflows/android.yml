@@ -19,8 +19,9 @@ jobs:
         run: gradle testDebugUnitTest
 
   preview-apk:
-    # Only the one explicitly marked commit builds the personal preview APK.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/phase1-zip-transactional-rollback' && contains(github.event.head_commit.message, '[build-preview]')
+    # Major development changes receive an internal APK preview after unit tests pass.
+    # Mark the corresponding development commit with [major-change].
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/phase1-zip-transactional-rollback' && contains(github.event.head_commit.message, '[major-change]')
     needs: test
     runs-on: ubuntu-latest
     steps:
@@ -30,12 +31,12 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
-      - name: Assemble preview debug APK
+      - name: Assemble internal preview APK
         run: gradle assembleDebug
-      - name: Upload personal preview APK
+      - name: Upload internal preview APK
         uses: actions/upload-artifact@v4
         with:
-          name: ArcNova-Preview-0.1.0
+          name: ArcNova-Internal-Preview-${{ github.sha }}
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
