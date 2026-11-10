@@ -374,7 +374,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun gzipOutputName(displayName: String?): String {
-        val name = displayName?.substringAfterLast('/').substringAfterLast('\\')?.trim().orEmpty()
+        val name = displayName?.substringAfterLast('/')?.substringAfterLast('\\')?.trim().orEmpty()
         val withoutSuffix = when {
             name.endsWith(".gzip", ignoreCase = true) -> name.dropLast(5)
             name.endsWith(".gz", ignoreCase = true) -> name.dropLast(3)
