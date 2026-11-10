@@ -2,7 +2,7 @@
 
 This roadmap is the source of truth for sequencing. The current Android screen is an engineering harness, not the final product UI. Debug APKs produced by CI are internal validation builds, not releases.
 
-## Current phase — Phase 1: Core file and archive foundations
+## Phase 1 — Core file and archive foundations (COMPLETED — 2026-11-10)
 
 **Goal:** build reliable, reusable engines before investing in the final interface.
 
@@ -20,6 +20,8 @@ Exit gate:
 - extraction and inspection have explicit resource limits and reliable cleanup/rollback;
 - no partial output is silently presented as a completed operation;
 - code review confirms capability labels match actual implementations.
+
+**Exit-gate result:** Satisfied on development commit `59301031f8ede9f2174db6b4a2815dbdf09e7953`; GitHub Actions [Run #42885080686](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42885080686) passed `gradle testDebugUnitTest`. The preview APK job was skipped. Physical-device and real SAF-provider validation remain in Phase 7 and are not claimed as complete.
 
 ## Phase 2 — General archive engines
 
