@@ -243,6 +243,11 @@ object ZipExtractionEngine {
                     error.message ?: "ZIP extraction limit exceeded",
                     totalBytes
                 )
+                is CentralDirectoryZipUnsupportedFeatureException -> ZipExtractionUnsupportedFeatureException(
+                    error.entryName,
+                    totalBytes,
+                    error
+                )
                 else -> error
             }
             operationFailure = reportedError
@@ -366,3 +371,15 @@ class ZipExtractionLimitException(message: String, bytesWritten: Long) :
     ZipExtractionException(message, bytesWritten)
 class ZipExtractionCancelledException(bytesWritten: Long) :
     ZipExtractionException("ZIP extraction cancelled", bytesWritten)
+class ZipExtractionUnsupportedFeatureException(
+    val entryName: String,
+    bytesWritten: Long,
+    cause: Throwable? = null
+) : ZipExtractionException(
+    "ZIP entry uses encryption or an unsupported compression method: $entryName",
+    bytesWritten
+) {
+    init {
+        cause?.let(::initCause)
+    }
+}
