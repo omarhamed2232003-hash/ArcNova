@@ -328,4 +328,21 @@ class CentralDirectoryZipBackendTest {
         directory.deleteRecursively()
     }
 
+    @Test fun rejectsEncryptedEntryDuringPreflightBeforeReturningArchive() {
+        val directory = tempDir()
+        val bytes = archive("secret.txt", "payload".toByteArray())
+        val central = centralDirectoryOffset(bytes)
+        // General-purpose bit 0 marks traditional ZIP encryption in both headers.
+        bytes[6] = (bytes[6].toInt() or 1).toByte()
+        bytes[central + 8] = (bytes[central + 8].toInt() or 1).toByte()
+        try {
+            org.junit.Assert.assertThrows(CentralDirectoryZipUnsupportedFeatureException::class.java) {
+                CentralDirectoryZipBackend.open(ByteArrayInputStream(bytes), directory, 4096)
+            }
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
 }
