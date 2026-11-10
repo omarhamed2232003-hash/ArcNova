@@ -17,7 +17,7 @@ class Bzip2XzExtractionEngineTest {
     }
 
     @Test fun decompressesLzmaAloneToCallerNamedFile() {
-        assertDecoded(ArchiveFormat.LZMA, lzma("ArcNova LZMA"))
+        assertDecoded(ArchiveFormat.LZMA, lzma("ArcNova LZMA-alone"))
     }
 
     @Test fun decompressesXzToCallerNamedFile() {
