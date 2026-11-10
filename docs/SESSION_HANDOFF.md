@@ -311,3 +311,18 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Follow-up error-taxonomy improvement: `ZipInspectionEngine.inspectCentralDirectory` now maps `CentralDirectoryZipUnsupportedFeatureException` to the distinct public `ZipInspectionUnsupportedFeatureException`, instead of reporting an encrypted/unsupported entry as malformed ZIP format. A regression test mutates both local and central ZIP encryption flags and verifies the public error type and spool cleanup.
 - The above taxonomy code/test commits are newer than Run #273 and require fresh CI validation; do not describe them as passed until a run for the latest branch head completes.
 - Still pending: map unsupported-feature errors to a dedicated public extraction exception if useful; validate Android SAF picker and extraction on the actual OnePlus Pad 2; finish Phase 1 exit criteria before Phase 2. No APK until all eight phases are complete and owner explicitly authorizes final packaging. No merge or changes to `main`.
+
+
+## Verified continuation — 2026-11-10 (file signature registry alignment)
+
+- Verified GitHub Actions Run #293 (`42758444074`) for commit `e04ca24aab70b0b2b64742cca853bdd0c3b38158`: workflow conclusion success; `test` job and `Run unit tests` step succeeded; `preview-apk` was skipped as required.
+- Re-synced repository state before edits: active branch `feature/phase1-zip-transactional-rollback` at `e04ca24aab70b0b2b64742cca853bdd0c3b38158`; PR #1 open, Draft, unmerged; `main` remains `ff50413b044cc788f7d1604728a365a76119889f`.
+- Aligned byte-signature detector IDs with the operation-level registry: UnityFS/UnityWeb/UnityRaw/UnityArchive/UnityWebData now resolve to `unity-asset-bundle`; RPA 2.0/3.0 resolves to `rpa`; USTAR resolves to `tar`.
+- Added Microsoft CAB and ISO 9660 as registry entries in `GENERAL_ARCHIVE`, with DETECT marked CI-tested and INSPECT/EXTRACT remaining PLANNED. OLE Compound File remains a document/container detection result and is intentionally not misclassified as an archive capability.
+- Updated capability notes to distinguish byte-signature recognition from filename-only hints and real parsing/decoding. Added registry tests for all new detect-only entries, consistent IDs, and extension lookup.
+- Commits for this alignment: `ead5bf13d70b284bdc3de789d4b373b00807bcf7` (detector IDs), `3d4b9601cbc9c5ebad05541640e0ca2e6b897b44` (CAB/ISO registry entries), `4a24d50319b67910c41bdceb16c4de0bf504277a` (consistency tests), `1c9543c1b1e20957a9f263674b2e3b7750998f57` (engine status documentation).
+- The registry-alignment commits require a fresh CI run on the final docs-inclusive head; do not report them as CI-tested until that run passes.
+- No APK built, no physical-device validation, no change to `main`, and no PR merge.
+
+### Next task
+- Verify CI for the final registry-alignment head. Then continue Phase 1 by strengthening the universal file-analysis foundation (safe metadata inspection/reporting and SHA-256/comparison edge cases) while reviewing the Phase 1 exit gate. Do not start Phase 2 until the documented Phase 1 gate is met.
