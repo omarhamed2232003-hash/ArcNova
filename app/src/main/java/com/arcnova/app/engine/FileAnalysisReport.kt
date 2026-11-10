@@ -22,7 +22,9 @@ object FileAnalysisAnalyzer {
         input: InputStream,
         maxHeaderBytes: Int = FileSignatureDetector.DEFAULT_MAX_HEADER_BYTES
     ): FileAnalysisReport {
-        require(maxHeaderBytes > 0) { "maxHeaderBytes must be positive" }
+        require(maxHeaderBytes in 1..FileSignatureDetector.DEFAULT_MAX_HEADER_BYTES) {
+            "maxHeaderBytes must be between 1 and ${FileSignatureDetector.DEFAULT_MAX_HEADER_BYTES}"
+        }
         val extension = displayName.substringAfterLast('/').substringAfterLast('\\')
             .let { name ->
                 val dot = name.lastIndexOf('.')
