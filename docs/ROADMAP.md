@@ -21,11 +21,13 @@ Exit gate:
 - no partial output is silently presented as a completed operation;
 - code review confirms capability labels match actual implementations.
 
-**Exit-gate result:** Satisfied on development commit `59301031f8ede9f2174db6b4a2815dbdf09e7953`; GitHub Actions [Run #42885080686](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42885080686) passed `gradle testDebugUnitTest`. The preview APK job was skipped. Physical-device and real SAF-provider validation remain in Phase 7 and are not claimed as complete.
+**Exit-gate result:** Satisfied on `main` commit `700bb50e305a8bd478fd6a05e56ef0a23d38f3f6`; GitHub Actions [Run #42899934445](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42899934445) passed `gradle testDebugUnitTest`. Physical-device and real SAF-provider validation remain in Phase 7 and are not claimed as complete.
 
 ## Phase 2 — General archive engines
 
 Add formats in deliberate groups (for example TAR/GZIP, then 7z, then RAR where licensing permits). Each format needs real parsing/decoding, fixtures, integrity checks, limits, cancellation, tests and capability-registry updates. Filename detection alone never counts as format support.
+
+**Current implementation batch:** TAR extraction and single-file GZIP decompression use the existing Commons Compress 1.28.0 dependency. 7z extraction uses Commons Compress 1.28.0 with XZ for Java 1.12; only implemented method/filter chains are accepted, encrypted entries and multipart volumes are rejected, and LZMA/LZMA2 decoder memory is capped at 256 MiB. The engineering picker routes ZIP, 7z, TAR, and GZIP to their engines; ZIP inspection remains ZIP-only. Unit tests passed in [Run #42903071257](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42903071257) on commit `f93c7b3dd9e58860bf21205db91bc98bb08f6030`; the major-change internal preview is being built. No physical-device validation is claimed.
 
 ## Phase 3 — Specialist compression and game containers
 

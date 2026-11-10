@@ -88,7 +88,19 @@ object FormatCapabilityRegistry {
             ),
             notes = "Bounded ZIP extraction and streaming inspection are implemented with path safety, limits, cancellation, and unit tests; physical-device validation is pending."
         ),
-        detected("7z", "7-Zip", FormatFamily.GENERAL_ARCHIVE, listOf("7z"), "Detection only; no 7z decoder is registered."),
+        FormatCapability(
+            id = "7z",
+            displayName = "7-Zip",
+            family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("7z"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Bounded 7z extraction uses Commons Compress 1.28.0 with XZ for Java 1.12. Only implemented compression/filter methods are accepted; encrypted entries and multipart volumes are not supported. LZMA/LZMA2 decoder memory is capped at 256 MiB. Physical-device validation is pending."
+        ),
         detected("rar", "RAR", FormatFamily.GENERAL_ARCHIVE, listOf("rar", "r00"), "Detection only; no RAR decoder is registered."),
         FormatCapability(
             id = "tar",

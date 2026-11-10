@@ -421,3 +421,16 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - The reconciliation carries forward only the remaining verified file-level differences: the major-change preview workflow policy, required dependency notices, unsupported-file action gating, Windows path normalization in archive risk assessment with regression coverage, and current Phase 1 status/roadmap/handoff documentation.
 - This reconciliation is based on `main` commit `3fe77df5d50bed9890abbeb3331928229aaab2a7`. The new branch must pass fresh GitHub Actions unit tests before Phase 1 is considered closed on `main`.
 - No APK was built. Phase 2 has not started. Physical-device and real SAF-provider validation remain scheduled for Phase 7.
+
+
+## Current verified snapshot — 2026-11-10
+
+- Phase 1 is closed on `main` at `700bb50e305a8bd478fd6a05e56ef0a23d38f3f6`; post-merge CI run #42899934445 succeeded. Older handoff snapshots above are historical and are superseded by this section.
+- Phase 2 branch: `feature/phase2-tar-gzip-engines`; draft PR #4: https://github.com/omarhamed2232003-hash/ArcNova/pull/4. No changes have been merged to `main`.
+- Implemented and wired into the engineering picker: ZIP, 7z, TAR extraction and GZIP decompression. ZIP inspection remains ZIP-only. TAR and GZIP use Commons Compress 1.28.0. 7z uses Commons Compress 1.28.0 + XZ for Java 1.12 (0BSD), with a 256 MiB LZMA/LZMA2 memory cap, method/filter allowlisting, CRC validation, limits, cancellation, path safety and rollback. Encrypted 7z entries and multipart volumes remain unsupported.
+- Shared `ArchiveExtractionFileSystem` now provides common path and rollback safeguards for TAR and 7z.
+- 7z fixtures/tests cover LZMA2 extraction, traversal rejection, input/output limits, cancellation, expansion ratio, CRC corruption, and caller-owned stream lifecycle.
+- Commit `f93c7b3dd9e58860bf21205db91bc98bb08f6030`: `Add bounded 7z extraction with XZ for Java [major-change]`. GitHub Actions run #42903071257 passed `gradle testDebugUnitTest`; the internal preview APK job is still in progress at this snapshot.
+- The previous TAR/GZIP picker integration commit `05f1550970fa18d2ef7fd711b2cb772d921241a6` passed unit tests and built internal preview artifact `ArcNova-Internal-Preview-05f1550970fa18d2ef7fd711b2cb772d921241a6`, retained until 2026-11-17.
+- RAR remains detection-only. Junrar is excluded due to its upstream restriction. libarchive and LZMA SDK remain candidates for later formats; no code from those projects is bundled.
+- No physical-device/real SAF validation, release build, or public distribution is claimed. Phase 2 remains in progress.

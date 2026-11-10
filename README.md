@@ -8,7 +8,7 @@ ArcNova is not an archive-only app and is not a game. It brings together a multi
 
 SREP + LOLZ / FreeArc-style pipelines are first-class FitGirl targets. Steam/Proton is a first-class runtime target. Neither is implemented yet.
 
-> **Current reality:** early scaffold and research stage. ArcNova does not currently extract FitGirl repacks, install Steam games, execute Windows installers, or launch PC games. Compatibility must be demonstrated title-by-title with reproducible tests.
+> **Current reality:** early engineering stage. ArcNova now has CI-tested ZIP/7z/TAR extraction and GZIP decompression, plus ZIP inspection. It does not currently extract FitGirl repacks as complete installer pipelines, install Steam games, execute Windows installers, or launch PC games. Compatibility must be demonstrated title-by-title with reproducible tests.
 
 ## Development roadmap
 
@@ -82,12 +82,15 @@ There is no universally fastest Wine/Proton + Box64/FEX + graphics-driver combin
 ## Current implementation
 
 - Android project scaffold and CI build.
-- ZIP extraction and Central Directory-backed ZIP inspection with bounded entry/size limits, cancellation, and unit tests. Inspection rejects unsafe or duplicate normalized paths before returning a report; rejected archives do not produce risk counts. CI coverage is not physical-device validation.
+- ZIP extraction and Central Directory-backed ZIP inspection with bounded entry/size limits, cancellation, and unit tests. Inspection rejects unsafe or duplicate normalized paths before returning a report; rejected archives do not produce risk counts.
+- Streaming TAR extraction and single-file GZIP decompression using the existing Apache Commons Compress dependency. TAR link and special-file entries are rejected; GZIP output names are caller-selected rather than trusted from archive headers.
+- Bounded 7z extraction using Commons Compress 1.28.0 and XZ for Java 1.12. It accepts only implemented compression/filter methods, rejects encrypted entries and multipart volumes, and caps LZMA/LZMA2 decoder memory at 256 MiB.
+- TAR/GZIP/7z engines enforce bounded input/output, path safety, cancellation, and transactional rollback. CI coverage is not physical-device validation.
 - Streaming SHA-256 file analysis and streaming two-file comparison (size and content equality), with caller-owned input streams left open.
 - Heuristic ZIP risk indicators surfaced for accepted inspection reports (suspicious sizes/ratios, executable/script content, nested archives, hidden entries, and deceptive double extensions). Unsafe or duplicate paths are rejected before a report is produced; risk indicators are not antivirus or a malware verdict.
 - Filename-based archive/package format hints for common formats and roadmap targets including WinRK, KGB, UHARC, ZPAQ, DGCA, StuffIt, Unreal PAK/IoStore, Unity AssetBundles, Source VPK, XP3 and RPA. These are extension hints, not proof that file contents are valid.
 - Bounded `FileSignatureDetector` identifies common image, document, executable-candidate, archive, audio, video, and database headers from byte arrays or a limited InputStream prefix without taking ownership of the stream. A signature match is not full-file validation.
-- Typed `FormatCapabilityRegistry` records per-format operation states (detect, inspect, extract, create, encode, install, launch). ZIP extraction, ZIP inspection, generic file-signature detection, streaming file analysis, and file comparison have CI-tested implementations; physical-device validation remains pending. Other listed archive/game formats remain planned or detection-only.
+- Typed `FormatCapabilityRegistry` records per-format operation states (detect, inspect, extract, create, encode, install, launch). ZIP/7z/TAR extraction, GZIP decompression, ZIP inspection, generic file-signature detection, streaming file analysis, and file comparison have CI-tested implementations; physical-device validation remains pending. Other listed archive/game formats remain planned or detection-only.
 - Bounded streaming transfer primitive and unit tests.
 - Platform-neutral runtime candidate planner with ABI/Vulkan/DirectX/32-bit/RAM/thermal checks and per-game profile validation.
 - Initial Android capability probe for supported ABIs, memory, CPU count, declared Vulkan feature version and thermal status; native Vulkan extension validation remains pending.
