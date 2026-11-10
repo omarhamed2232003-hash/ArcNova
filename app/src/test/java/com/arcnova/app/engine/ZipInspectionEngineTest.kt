@@ -27,6 +27,17 @@ class ZipInspectionEngineTest {
         return output.toByteArray()
     }
 
+
+    private fun encryptedArchive(): ByteArray {
+        val bytes = archive("secret.txt" to byteArrayOf(1, 2, 3))
+        val localHeader = bytes.indexOfSubsequence(byteArrayOf(0x50, 0x4b, 0x03, 0x04))
+        val centralHeader = bytes.indexOfSubsequence(byteArrayOf(0x50, 0x4b, 0x01, 0x02))
+        check(localHeader >= 0 && centralHeader >= 0)
+        bytes[localHeader + 6] = (bytes[localHeader + 6].toInt() or 1).toByte()
+        bytes[centralHeader + 8] = (bytes[centralHeader + 8].toInt() or 1).toByte()
+        return bytes
+    }
+
     @Test fun inspectsEntriesWithoutExtracting() {
         val report = ZipInspectionEngine.inspect(
             ByteArrayInputStream(archive("docs/readme.txt" to "hello".toByteArray()))
@@ -163,6 +174,25 @@ class ZipInspectionEngineTest {
             fail("Expected invalid archive path conflict")
         } catch (error: ZipInspectionFormatException) {
             assertTrue(error.message.orEmpty().contains("conflicts"))
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
+
+    @Test fun centralDirectoryInspectionReportsEncryptedEntryAsUnsupportedFeature() {
+        val cache = createTempDir(prefix = "arcnova-inspect-unsupported-")
+        try {
+            ZipInspectionEngine.inspectCentralDirectory(
+                input = ByteArrayInputStream(encryptedArchive()),
+                cacheDirectory = cache,
+                maxArchiveBytes = 4096
+            )
+            fail("Expected unsupported ZIP feature")
+        } catch (error: ZipInspectionUnsupportedFeatureException) {
+            assertEquals("secret.txt", error.entryName)
+            assertTrue(error.cause is CentralDirectoryZipUnsupportedFeatureException)
             assertTrue(cache.listFiles().orEmpty().isEmpty())
         } finally {
             cache.deleteRecursively()
