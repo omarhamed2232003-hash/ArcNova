@@ -52,7 +52,8 @@ object ArchiveRiskAssessment {
             "The archive contains hidden or dot-prefixed entries.")
         add("double-extension", RiskSeverity.MEDIUM,
             report.entries.count {
-                DOUBLE_EXTENSION_PATTERN.matches(it.name.substringAfterLast('/').lowercase())
+                val name = it.name.replace(92.toChar(), '/').substringAfterLast('/')
+                DOUBLE_EXTENSION_PATTERN.matches(name.lowercase())
             },
             "One or more filenames use potentially deceptive double extensions.")
 

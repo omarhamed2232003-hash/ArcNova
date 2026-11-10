@@ -2,7 +2,7 @@
 
 This roadmap is the source of truth for sequencing. The current Android screen is an engineering harness, not the final product UI. Debug APKs produced by CI are internal validation builds, not releases.
 
-## Current phase — Phase 1: Core file and archive foundations
+## Phase 1 — Core file and archive foundations (COMPLETED — 2026-11-10)
 
 **Goal:** build reliable, reusable engines before investing in the final interface.
 
@@ -20,6 +20,8 @@ Exit gate:
 - extraction and inspection have explicit resource limits and reliable cleanup/rollback;
 - no partial output is silently presented as a completed operation;
 - code review confirms capability labels match actual implementations.
+
+**Exit-gate result:** Satisfied on development commit `59301031f8ede9f2174db6b4a2815dbdf09e7953`; GitHub Actions [Run #42885080686](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42885080686) passed `gradle testDebugUnitTest`. The preview APK job was skipped. Physical-device and real SAF-provider validation remain in Phase 7 and are not claimed as complete.
 
 ## Phase 2 — General archive engines
 
@@ -51,7 +53,8 @@ Complete security review, privacy/data-flow review, dependency and license notic
 
 ## Build and validation policy
 
-- Current CI runs `gradle testDebugUnitTest` only. The single owner-authorized early personal preview APK has already been built and delivered. That exception is consumed: do not build another APK until all eight phases are complete and the owner explicitly authorizes final packaging. Any APK is an internal test artifact, not a user-facing release.
+- Every development commit runs `gradle testDebugUnitTest`. For a major implementation change on the development branch, mark the commit message with `[major-change]`; after unit tests pass, CI automatically assembles and uploads an internal preview APK artifact retained for 7 days. Use this marker for substantial engine integrations, architecture changes, major UI work, or other changes whose behavior needs an end-to-end visual/runtime check; do not use it for routine fixes or documentation-only commits.
+- These recurring internal previews are validation artifacts, not releases, and do not replace unit tests or Phase 7 physical-device qualification. The one-off personal preview exception remains distinct from these CI artifacts. Do not build or distribute a release APK until all eight phases are complete and the owner explicitly authorizes final packaging.
 - Do not spend time polishing the prototype UI before the engine contracts are stable, except for small controls needed to exercise and validate functionality.
 - Do not mark a capability implemented until its actual operation has tests; do not mark it device-validated until it passes on a physical device.
 - Preserve existing files and backups; extend the current architecture incrementally rather than restarting the project.
