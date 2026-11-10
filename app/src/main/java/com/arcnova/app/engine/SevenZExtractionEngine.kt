@@ -261,7 +261,7 @@ object SevenZExtractionEngine {
     ): List<PlannedEntry> {
         val seenPaths = java.util.TreeMap<String, Boolean>()
         var declaredTotal = 0L
-        val planned = ArrayList<PlannedEntry>(entries.size)
+        val planned = ArrayList<PlannedEntry>()
 
         for (entry in entries) {
             if (planned.size >= policy.maxEntries) {
