@@ -347,3 +347,38 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Code/test commits: `f9a53ea8dddd4995dfc389476eeea8142c49a8c8`, `cf9b88c3b777da76b1a35e5ef1269e2580ea43e1`. Documentation updates follow; verify CI for the final docs-inclusive head before marking this optimization CI-tested.
 - No API or report schema change. No APK, device test, PR merge, or change to `main`.
 - Next task: inspect Phase 1 comparison/report semantics and reconcile the documented exit gate against actual code and tests.
+
+
+## Continuation — 2026-11-10 (Phase 1 Batch 1 ZIP contracts)
+
+- Confirmed the active branch and local HEAD before editing: `feature/phase1-zip-transactional-rollback` at `f36d8d0750839c82e42d829d15e05121d745d7b3`; worktree was clean. No branch switch, commit, push, merge, or APK build was performed.
+- ZIP extraction selection now checks the detector's multipart flag; numbered `.zip.001` parts remain detected as ZIP but are not offered to the single-file backend. Added focused detector tests for multipart rejection and ordinary ZIP extension/signature acceptance.
+- Central Directory duplicate normalized paths now produce a typed backend and public inspection exception. The app explicitly says unsafe/duplicate path rejection did not produce a risk report; those cases remain rejected before payload processing. Added a normalized backslash/slash duplicate regression test and updated README/engine/backend status documentation to describe the actual report contract.
+- Legacy `ZipInputStream` extraction now closes its ZIP reader/inflater through a non-closing wrapper, preserving caller ownership of the input stream. Added a failure-path stream-ownership regression test; the existing success-path ownership test remains.
+- Focused `gradle testDebugUnitTest` for `ArchiveFormatDetectorTest`, `ZipInspectionEngineTest`, and `ZipExtractionEngineTest` stopped before compilation/tests because no Android SDK is configured (`ANDROID_HOME` and `sdk.dir` absent). Editor diagnostics found no errors in touched Kotlin files; `git diff --check` passed. Tests are not verified as passing.
+- Next: provide/configure an Android SDK and run the focused unit tests, then the full `gradle testDebugUnitTest`; review the final diff before any commit. Physical-device/SAF-provider testing remains pending. Do not build an APK or advance beyond Phase 1.
+
+
+## Continuation — 2026-11-10 (split ZIP filename hints)
+
+- Added `.zNN` split-ZIP first-volume filename detection alongside the existing `.zip.NNN` pattern. Ordinary `.zip` files remain single-volume eligible; existing RAR `.partN.rar` and `.rNN` detection is unchanged and now has regression coverage.
+- Updated `docs/ENGINE_STATUS.md` to describe filename hints as partial: complete volume-set discovery, validation, and multipart extraction remain unimplemented.
+- Focused `gradle testDebugUnitTest --tests 'com.arcnova.app.engine.ArchiveFormatDetectorTest'` stopped before compilation/tests because Android SDK configuration is missing. Editor diagnostics found no Kotlin errors and `git diff --check` passed; the new tests are not verified as passing.
+- No branch change, staging, commit, push, merge, or APK build. Continue with SDK-backed test execution when an SDK is available; preserve the English-only project language policy.
+
+
+## Continuation — 2026-11-10 (ZIP extension/signature eligibility)
+
+- `ArchiveDetection.supportsZipExtraction` remains the production eligibility check used by `MainActivity`. It blocks multipart files regardless of signature, rejects conflicts between a known filename format and a known signature, permits a known `.zip` extension when the signature is absent or unknown, and permits a ZIP signature when the filename extension is unknown.
+- `FileAnalysisAnalyzer` continues to report known extension/signature mismatch as `false`; the picker now disables extraction and explicitly reports a mismatch instead of letting one known signal override the other. RAR multipart detection is unchanged and regression-tested for `.partN.rar` and `.rNN`.
+- Focused `gradle testDebugUnitTest --tests 'com.arcnova.app.engine.ArchiveFormatDetectorTest'` stopped before compilation/tests because Android SDK configuration is missing. Editor diagnostics found no Kotlin errors and `git diff --check` passed; the tests are not verified as passing.
+
+
+## Continuation — 2026-11-10 (Batch 1 review follow-ups)
+
+- Corrected `docs/ZIP_BACKEND_EVALUATION.md` to describe the integrated Central Directory ZIP path and remaining validation gates. `docs/ENGINE_STATUS.md` now states that CI-tested labels refer to previously validated revisions; current uncommitted Batch 1 changes are not CI-validated.
+- Expanded ZIP eligibility tests for `ArchiveFormat.UNKNOWN` signatures/extensions and for multipart ZIP rejection with null and non-ZIP signatures.
+- Added an internal `ZipInputStream` factory seam used only by tests to verify that the reader is closed on success and failure while the caller-owned input remains open. The public extraction API still constructs the standard `ZipInputStream`; existing ownership tests remain unchanged.
+- Local `gradle testDebugUnitTest` completed successfully: 171 tests, 0 failures, 0 errors, and 0 skipped. The local run used JDK 21 with Android SDK Platform 36 and Build Tools 36.0.0.
+- The CI workflow specifies JDK 17, so this local result was obtained with a different JDK than CI. The current uncommitted Batch 1 changes have not been CI-validated.
+- Physical Android device and real SAF-provider validation remain pending. No APK was built.

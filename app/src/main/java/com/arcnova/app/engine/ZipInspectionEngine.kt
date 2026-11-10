@@ -78,6 +78,8 @@ object ZipInspectionEngine {
             throw ZipInspectionLimitException(limit.message ?: "ZIP inspection limit exceeded")
         } catch (unsafe: CentralDirectoryZipUnsafePathException) {
             throw ZipInspectionUnsafePathException(unsafe.entryName)
+        } catch (duplicate: CentralDirectoryZipDuplicatePathException) {
+            throw ZipInspectionDuplicatePathException(duplicate.entryName, duplicate.normalizedPath)
         } catch (integrity: CentralDirectoryZipCrcException) {
             throw ZipInspectionIntegrityException(integrity.entryName, integrity.expectedCrc32, integrity.actualCrc32)
         } catch (unsupported: CentralDirectoryZipUnsupportedFeatureException) {
@@ -218,6 +220,8 @@ data class ZipInspectionReport(
 class ZipInspectionLimitException(message: String) : Exception(message)
 class ZipInspectionUnsafePathException(val entryName: String) :
     Exception("Unsafe ZIP entry path: $entryName")
+class ZipInspectionDuplicatePathException(val entryName: String, val normalizedPath: String) :
+    Exception("Duplicate normalized ZIP entry path: $normalizedPath (entry: $entryName)")
 class ZipInspectionIntegrityException(
     val entryName: String,
     val expectedCrc32: Long,

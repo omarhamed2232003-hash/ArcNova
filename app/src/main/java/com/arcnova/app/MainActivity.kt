@@ -137,7 +137,7 @@ class MainActivity : ComponentActivity() {
                 } ?: throw IllegalStateException("The selected provider could not open this file")
                 val signature = readPrefix(uri)?.let(ArchiveSignatureDetector::detect)
                 val extension = ArchiveFormatDetector.detect(source.displayName)
-                val supported = extension.format == ArchiveFormat.ZIP || signature == ArchiveFormat.ZIP
+                val supported = extension.supportsZipExtraction(signature)
                 mainHandler.post {
                     selectedArchive = source
                     fileLabel.text = buildString {
@@ -150,8 +150,16 @@ class MainActivity : ComponentActivity() {
                     extractButton.isEnabled = supported
                     inspectButton.isEnabled = supported
                     chooseFolderButton.isEnabled = supported
-                    statusLabel.text = if (supported) "Choose a destination folder to continue."
-                        else "File is readable, but its format is not supported yet."
+                    statusLabel.text = when {
+                        supported -> "Choose a destination folder to continue."
+                        extension.isMultipart && extension.format == ArchiveFormat.ZIP ->
+                            "Multipart ZIP extraction is not supported yet."
+                        extension.format != ArchiveFormat.UNKNOWN &&
+                            signature != null && signature != ArchiveFormat.UNKNOWN &&
+                            extension.format != signature ->
+                            "File extension and header do not match. Extraction is disabled."
+                        else -> "File is readable, but its format is not supported yet."
+                    }
                 }
             } catch (error: Exception) {
                 mainHandler.post {
@@ -235,6 +243,10 @@ class MainActivity : ComponentActivity() {
                 mainHandler.post {
                     statusLabel.text = when (error) {
                         is com.arcnova.app.engine.ZipInspectionCancelledException -> "Inspection cancelled."
+                        is com.arcnova.app.engine.ZipInspectionUnsafePathException ->
+                            "Inspection rejected an unsafe ZIP path. No risk report was produced."
+                        is com.arcnova.app.engine.ZipInspectionDuplicatePathException ->
+                            "Inspection rejected duplicate ZIP paths. No risk report was produced."
                         is com.arcnova.app.engine.ZipInspectionUnsupportedFeatureException ->
                             "This ZIP uses encryption or a compression method ArcNova cannot read. No files were written."
                         else -> "Inspection failed: ${error.message ?: error.javaClass.simpleName}"

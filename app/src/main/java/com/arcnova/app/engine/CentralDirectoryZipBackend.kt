@@ -78,7 +78,7 @@ object CentralDirectoryZipBackend {
             }
             val normalized = normalizePath(entry.name, policy)
             if (seenPaths.containsKey(normalized)) {
-                throw CentralDirectoryZipException("Duplicate normalized output path: $normalized")
+                throw CentralDirectoryZipDuplicatePathException(entry.name, normalized)
             }
             val segments = normalized.split('/')
             for (index in 1 until segments.size) {
@@ -244,6 +244,10 @@ open class CentralDirectoryZipException(message: String) : IOException(message)
 class CentralDirectoryZipLimitException(message: String) : CentralDirectoryZipException(message)
 class CentralDirectoryZipUnsafePathException(val entryName: String) :
     CentralDirectoryZipException("Unsafe ZIP entry path: $entryName")
+class CentralDirectoryZipDuplicatePathException(
+    val entryName: String,
+    val normalizedPath: String
+) : CentralDirectoryZipException("Duplicate normalized output path: $normalizedPath")
 class CentralDirectoryZipCancelledException :
     CentralDirectoryZipException("Central Directory ZIP operation cancelled")
 class CentralDirectoryZipUnsupportedFeatureException(val entryName: String) :

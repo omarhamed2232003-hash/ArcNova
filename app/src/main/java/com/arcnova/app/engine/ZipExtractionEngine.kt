@@ -3,6 +3,7 @@ package com.arcnova.app.engine
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FilterInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.util.zip.ZipInputStream
@@ -27,6 +28,38 @@ object ZipExtractionEngine {
         policy: ExtractionPolicy = ExtractionPolicy(),
         cancellationRequested: () -> Boolean = { false },
         onProgress: (ZipExtractionProgress) -> Unit = {}
+    ): ZipExtractionResult = extractInternal(
+        input = input,
+        destination = destination,
+        policy = policy,
+        cancellationRequested = cancellationRequested,
+        onProgress = onProgress,
+        zipInputStreamFactory = { stream -> ZipInputStream(stream) }
+    )
+
+    internal fun extractWithZipInputStreamFactory(
+        input: InputStream,
+        destination: File,
+        zipInputStreamFactory: (InputStream) -> ZipInputStream,
+        policy: ExtractionPolicy = ExtractionPolicy(),
+        cancellationRequested: () -> Boolean = { false },
+        onProgress: (ZipExtractionProgress) -> Unit = {}
+    ): ZipExtractionResult = extractInternal(
+        input = input,
+        destination = destination,
+        policy = policy,
+        cancellationRequested = cancellationRequested,
+        onProgress = onProgress,
+        zipInputStreamFactory = zipInputStreamFactory
+    )
+
+    private fun extractInternal(
+        input: InputStream,
+        destination: File,
+        policy: ExtractionPolicy,
+        cancellationRequested: () -> Boolean,
+        onProgress: (ZipExtractionProgress) -> Unit,
+        zipInputStreamFactory: (InputStream) -> ZipInputStream
     ): ZipExtractionResult {
         require(policy.maxEntries > 0) { "maxEntries must be positive" }
         require(policy.maxSingleFileBytes >= 0L) { "maxSingleFileBytes must not be negative" }
@@ -51,8 +84,12 @@ object ZipExtractionEngine {
         val buffer = ByteArray(BUFFER_SIZE)
         val seenOutputPaths = mutableSetOf<String>()
 
-        // Do not close the caller-owned input stream; the caller controls its lifecycle.
-        val zip = ZipInputStream(BufferedInputStream(input))
+        // Close the ZIP inflater while leaving the caller-owned input stream open.
+        val nonClosingInput = object : FilterInputStream(input) {
+            override fun close() = Unit
+        }
+        val zip = zipInputStreamFactory(BufferedInputStream(nonClosingInput))
+        var operationFailure: Exception? = null
         try {
             while (true) {
                 checkCancelled(cancellationRequested, totalBytes)
@@ -122,10 +159,24 @@ object ZipExtractionEngine {
                 }
             }
 
+            zip.close()
             return ZipExtractionResult(entries, files, directories, totalBytes, root)
         } catch (error: Exception) {
+            operationFailure = error
             rollback(createdFiles, createdDirectories, if (destinationExisted) null else root, error)
             throw error
+        } finally {
+            try {
+                zip.close()
+            } catch (closeError: Exception) {
+                val primaryError = operationFailure
+                if (primaryError != null) {
+                    primaryError.addSuppressed(closeError)
+                } else {
+                    rollback(createdFiles, createdDirectories, if (destinationExisted) null else root, closeError)
+                    throw closeError
+                }
+            }
         }
     }
 

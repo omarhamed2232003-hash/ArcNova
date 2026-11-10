@@ -3,7 +3,10 @@ package com.arcnova.app.engine
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
+import java.io.InputStream
 import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -14,6 +17,27 @@ import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
 import org.junit.Test
 
 class ZipExtractionEngineTest {
+    private class TrackingZipInputStream(input: InputStream) : ZipInputStream(input) {
+        var closeCalled = false
+            private set
+
+        override fun close() {
+            closeCalled = true
+            super.close()
+        }
+    }
+
+    private class CloseFailingZipInputStream(input: InputStream) : ZipInputStream(input) {
+        var closeCalled = false
+            private set
+
+        override fun close() {
+            closeCalled = true
+            super.close()
+            throw IOException("simulated ZIP reader close failure")
+        }
+    }
+
     private fun archive(vararg entries: Pair<String, ByteArray>): ByteArray {
         val output = ByteArrayOutputStream()
         ZipOutputStream(output).use { zip ->
@@ -513,6 +537,153 @@ class ZipExtractionEngineTest {
         try {
             ZipExtractionEngine.extract(input, dir)
             assertFalse(closed)
+        } finally {
+            input.close()
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun leavesCallerOwnedInputStreamOpenWhenExtractionFails() {
+        val dir = tempDir()
+        var closed = false
+        val input = object : ByteArrayInputStream(archive("../unsafe.txt" to byteArrayOf(1))) {
+            override fun close() {
+                closed = true
+                super.close()
+            }
+        }
+        try {
+            org.junit.Assert.assertThrows(UnsafeArchivePathException::class.java) {
+                ZipExtractionEngine.extract(input, dir)
+            }
+            assertFalse(closed)
+        } finally {
+            input.close()
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun closesZipReaderButLeavesCallerInputOpenOnSuccess() {
+        val dir = tempDir()
+        var callerInputClosed = false
+        var zipReader: TrackingZipInputStream? = null
+        val input = object : ByteArrayInputStream(archive("a.txt" to byteArrayOf(1))) {
+            override fun close() {
+                callerInputClosed = true
+                super.close()
+            }
+        }
+        try {
+            ZipExtractionEngine.extractWithZipInputStreamFactory(
+                input = input,
+                destination = dir,
+                zipInputStreamFactory = { stream ->
+                    TrackingZipInputStream(stream).also { zipReader = it }
+                }
+            )
+
+            assertTrue(zipReader?.closeCalled == true)
+            assertFalse(callerInputClosed)
+        } finally {
+            input.close()
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun closesZipReaderButLeavesCallerInputOpenOnFailure() {
+        val dir = tempDir()
+        var callerInputClosed = false
+        var zipReader: TrackingZipInputStream? = null
+        val input = object : ByteArrayInputStream(archive("../unsafe.txt" to byteArrayOf(1))) {
+            override fun close() {
+                callerInputClosed = true
+                super.close()
+            }
+        }
+        try {
+            org.junit.Assert.assertThrows(UnsafeArchivePathException::class.java) {
+                ZipExtractionEngine.extractWithZipInputStreamFactory(
+                    input = input,
+                    destination = dir,
+                    zipInputStreamFactory = { stream ->
+                        TrackingZipInputStream(stream).also { zipReader = it }
+                    }
+                )
+            }
+
+            assertTrue(zipReader?.closeCalled == true)
+            assertFalse(callerInputClosed)
+        } finally {
+            input.close()
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun rollsBackExtractedOutputWhenZipReaderCloseFails() {
+        val dir = tempDir()
+        val existing = File(dir, "keep.txt").apply { writeText("preserve") }
+        var callerInputClosed = false
+        var zipReader: CloseFailingZipInputStream? = null
+        val input = object : ByteArrayInputStream(archive("new/nested.txt" to byteArrayOf(1))) {
+            override fun close() {
+                callerInputClosed = true
+                super.close()
+            }
+        }
+        try {
+            val error = org.junit.Assert.assertThrows(IOException::class.java) {
+                ZipExtractionEngine.extractWithZipInputStreamFactory(
+                    input = input,
+                    destination = dir,
+                    zipInputStreamFactory = { stream ->
+                        CloseFailingZipInputStream(stream).also { zipReader = it }
+                    }
+                )
+            }
+
+            assertEquals("simulated ZIP reader close failure", error.message)
+            assertTrue(zipReader?.closeCalled == true)
+            assertFalse(File(dir, "new/nested.txt").exists())
+            assertFalse(File(dir, "new").exists())
+            assertEquals("preserve", existing.readText())
+            assertFalse(callerInputClosed)
+        } finally {
+            input.close()
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun suppressesZipReaderCloseFailureAfterExtractionFailure() {
+        val dir = tempDir()
+        var callerInputClosed = false
+        var zipReader: CloseFailingZipInputStream? = null
+        val input = object : ByteArrayInputStream(archive(
+            "new/first.txt" to byteArrayOf(1),
+            "../unsafe.txt" to byteArrayOf(2)
+        )) {
+            override fun close() {
+                callerInputClosed = true
+                super.close()
+            }
+        }
+        try {
+            val error = org.junit.Assert.assertThrows(UnsafeArchivePathException::class.java) {
+                ZipExtractionEngine.extractWithZipInputStreamFactory(
+                    input = input,
+                    destination = dir,
+                    zipInputStreamFactory = { stream ->
+                        CloseFailingZipInputStream(stream).also { zipReader = it }
+                    }
+                )
+            }
+
+            assertTrue(zipReader?.closeCalled == true)
+            assertEquals(1, error.suppressed.size)
+            assertTrue(error.suppressed.single() is IOException)
+            assertEquals("simulated ZIP reader close failure", error.suppressed.single().message)
+            assertFalse(File(dir, "new/first.txt").exists())
+            assertFalse(File(dir, "new").exists())
+            assertFalse(callerInputClosed)
         } finally {
             input.close()
             dir.deleteRecursively()

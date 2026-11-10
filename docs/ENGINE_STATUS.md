@@ -4,20 +4,22 @@
 |---|---|---|
 | Android document picker | Implemented, CI-tested | Uses AndroidX Activity Result `OpenDocument` / `OpenDocumentTree`; provider metadata and readability probes run on the worker thread. SAF destination copy uses transactional created-document tracking, collision checks, cancellation, and reverse-order rollback. Real provider/device behavior remains pending. |
 | ZIP extraction | Implemented, CI-tested | Bounded output, safe paths, cancellation, no overwrite, transactional rollback of all files/directories created by a failed extraction; pre-existing content is preserved. The SAF copy is separately transactional through created-document tracking and reverse-order rollback; real provider/device behavior remains pending. |
-| ZIP inspection | Implemented, CI-tested | Streams entries without writing them; reports unsafe paths and duplicates |
+| ZIP inspection | Implemented, CI-tested | Central Directory inspection validates accepted entries without writing files. Unsafe paths and duplicate normalized paths are rejected before a report is returned; rejection errors do not include or imply risk counts. Successful reports contain only entries that passed path preflight. |
 | Seekable ZIP archive spool | Implemented, CI-tested | Copies caller-owned input to a bounded private temp file for Central Directory access; supports cancellation and explicit cleanup. |
 | Central Directory ZIP adapter | Integrated into app inspection and extraction paths; CI-tested | MainActivity routes ZIP extraction through `extractCentralDirectory`, which performs bounded seekable spooling and Central Directory preflight before writing. It rejects unsafe, duplicate, and file/directory-conflicting paths and validates actual sizes, expansion ratio, and CRC32 while streaming; filesystem rollback remains enabled. App spool input cap is currently 2 GiB. The legacy streaming engine remains available for regression coverage. Physical-device/provider validation is pending. |
 | ZIP heuristic risk assessment | Implemented, CI-tested | Advisory indicators only; not malware scanning |
 | Generic file signature detection | Implemented, CI-tested | Bounded header recognition for common files and selected game/installer containers (VPK, XP3, Unity bundle variants/WebData, RPA 2.0/3.0, CAB, USTAR, ISO 9660, OLE Compound File). Signature IDs for Unity/RPA/TAR are normalized to the capability registry; CAB and ISO 9660 are registered as detect-only. Recognition is not structural validation or extraction. |
 | Streaming file analysis | Implemented, CI-tested | Size, signature/extension comparison, SHA-256 |
 | Streaming file comparison | Implemented, CI-tested | Compares sizes and SHA-256 without loading whole files into memory |
-| Split-part detection | Not implemented | Research/implementation pending |
+| Split-part filename hints | Partial | Recognizes ZIP `.zip.NNN` / `.zNN`, 7z `.7z.NNN`, and RAR `.partN.rar` / `.rNN` names. Complete volume-set discovery, validation, and multipart extraction are not implemented. |
 | SREP decoder | Blocked | Upstream source reserves all rights; no permission or redistributable license verified |
 | LOLZ decoder | Blocked | No redistributable native Android ARM64 implementation verified; known CLS plugins are proprietary |
 | FitGirl installer pipeline | Not implemented | User-provided fixtures only; no game payloads in repository |
 | Physical-device validation | Pending | CI is not proof of Android device behavior |
 
 The capability registry distinguishes byte-signature detection from filename-extension hints: formats known only by an extension (for example FreeArc, KGB, StuffIt, and Unreal PAK) remain PLANNED for DETECT until a real signature detector exists. Extension lookup is a search hint, not proof of file identity.
+
+CI-tested labels above refer to previously validated revisions. The current uncommitted Batch 1 changes have not been validated by CI.
 
 A CI-tested implementation is not automatically device-validated, production-ready, or malware-safe. Do not assume an algorithm name implies an available redistributable decoder. Record upstream URL, version/commit, license, tested architectures, and fixture provenance before integration. Do not bundle proprietary CLS DLLs/executables or copyrighted game files.
 

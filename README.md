@@ -82,9 +82,9 @@ There is no universally fastest Wine/Proton + Box64/FEX + graphics-driver combin
 ## Current implementation
 
 - Android project scaffold and CI build.
-- ZIP extraction and streaming ZIP inspection with bounded entry/size limits, cancellation, unsafe-path and duplicate-name reporting, and unit tests. CI coverage is not yet physical-device validation.
+- ZIP extraction and Central Directory-backed ZIP inspection with bounded entry/size limits, cancellation, and unit tests. Inspection rejects unsafe or duplicate normalized paths before returning a report; rejected archives do not produce risk counts. CI coverage is not physical-device validation.
 - Streaming SHA-256 file analysis and streaming two-file comparison (size and content equality), with caller-owned input streams left open.
-- Heuristic ZIP risk indicators surfaced in the inspection summary (path traversal, duplicate names, suspicious sizes/ratios, executable/script content, nested archives, hidden entries, and deceptive double extensions). This is not antivirus or a malware verdict.
+- Heuristic ZIP risk indicators surfaced for accepted inspection reports (suspicious sizes/ratios, executable/script content, nested archives, hidden entries, and deceptive double extensions). Unsafe or duplicate paths are rejected before a report is produced; risk indicators are not antivirus or a malware verdict.
 - Filename-based archive/package format hints for common formats and roadmap targets including WinRK, KGB, UHARC, ZPAQ, DGCA, StuffIt, Unreal PAK/IoStore, Unity AssetBundles, Source VPK, XP3 and RPA. These are extension hints, not proof that file contents are valid.
 - Bounded `FileSignatureDetector` identifies common image, document, executable-candidate, archive, audio, video, and database headers from byte arrays or a limited InputStream prefix without taking ownership of the stream. A signature match is not full-file validation.
 - Typed `FormatCapabilityRegistry` records per-format operation states (detect, inspect, extract, create, encode, install, launch). ZIP extraction, ZIP inspection, generic file-signature detection, streaming file analysis, and file comparison have CI-tested implementations; physical-device validation remains pending. Other listed archive/game formats remain planned or detection-only.

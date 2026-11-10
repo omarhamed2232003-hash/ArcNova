@@ -120,6 +120,27 @@ class ZipInspectionEngineTest {
         }
     }
 
+    @Test fun centralDirectoryInspectionRejectsDuplicateNormalizedPathsWithoutProducingAReport() {
+        val cache = createTempDir(prefix = "arcnova-inspect-duplicate-")
+        try {
+            val error = org.junit.Assert.assertThrows(ZipInspectionDuplicatePathException::class.java) {
+                ZipInspectionEngine.inspectCentralDirectory(
+                    input = ByteArrayInputStream(archive(
+                        "folder\\item.txt" to byteArrayOf(1),
+                        "folder/item.txt" to byteArrayOf(2)
+                    )),
+                    cacheDirectory = cache,
+                    maxArchiveBytes = 4096
+                )
+            }
+            assertEquals("folder/item.txt", error.normalizedPath)
+            assertEquals("folder/item.txt", error.entryName)
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
 
     @Test fun centralDirectoryInspectionReportsCrcMismatchAsIntegrityFailure() {
         val cache = createTempDir(prefix = "arcnova-inspect-crc-")
