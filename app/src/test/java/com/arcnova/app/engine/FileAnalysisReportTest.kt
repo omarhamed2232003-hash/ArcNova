@@ -88,4 +88,14 @@ class FileAnalysisReportTest {
         assertFalse(closed)
     }
 
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsAnalysisHeaderLimitAboveBoundedMaximum() {
+        FileAnalysisAnalyzer.analyze(
+            "large-header.bin",
+            ByteArrayInputStream(byteArrayOf(1)),
+            FileSignatureDetector.DEFAULT_MAX_HEADER_BYTES + 1
+        )
+    }
+
 }
