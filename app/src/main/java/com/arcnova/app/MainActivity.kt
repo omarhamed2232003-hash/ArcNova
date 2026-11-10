@@ -18,6 +18,7 @@ import com.arcnova.app.engine.ArchiveRiskAssessment
 import com.arcnova.app.engine.ArchiveFormatDetector
 import com.arcnova.app.engine.ArchiveSignatureDetector
 import com.arcnova.app.engine.ArchiveSource
+import com.arcnova.app.engine.ExtractionStagingCleanup
 import com.arcnova.app.engine.ExtractionPolicy
 import com.arcnova.app.engine.ZipExtractionEngine
 import com.arcnova.app.engine.ZipInspectionEngine
@@ -267,6 +268,7 @@ class MainActivity : ComponentActivity() {
         statusLabel.text = "Preparing ZIP extraction…"
         worker.execute {
             val staging = File(cacheDir, "arcnova-extract-${System.currentTimeMillis()}")
+            var operationFailure: Exception? = null
             try {
                 val input = contentResolver.openInputStream(source.uri)
                     ?: throw IllegalStateException("Cannot open selected archive")
@@ -289,6 +291,7 @@ class MainActivity : ComponentActivity() {
                     setBusy(false)
                 }
             } catch (error: Exception) {
+                operationFailure = error
                 mainHandler.post {
                     statusLabel.text = when (error) {
                         is InterruptedException, is ZipExtractionCancelledException, is TreeCopyCancelledException -> "Extraction cancelled."
@@ -299,7 +302,16 @@ class MainActivity : ComponentActivity() {
                     setBusy(false)
                 }
             } finally {
-                staging.deleteRecursively()
+                val cleanupFailure = ExtractionStagingCleanup.cleanup(staging, operationFailure)
+                if (cleanupFailure != null) {
+                    mainHandler.post {
+                        statusLabel.text = if (operationFailure == null) {
+                            "Extraction completed, but temporary staging data could not be removed from app cache."
+                        } else {
+                            "${statusLabel.text}\nCleanup warning: temporary staging data could not be removed from app cache."
+                        }
+                    }
+                }
             }
         }
     }

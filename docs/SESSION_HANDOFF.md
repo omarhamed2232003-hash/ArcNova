@@ -382,3 +382,10 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Local `gradle testDebugUnitTest` completed successfully: 171 tests, 0 failures, 0 errors, and 0 skipped. The local run used JDK 21 with Android SDK Platform 36 and Build Tools 36.0.0.
 - The CI workflow specifies JDK 17, so this local result was obtained with a different JDK than CI. The current uncommitted Batch 1 changes have not been CI-validated.
 - Physical Android device and real SAF-provider validation remain pending. No APK was built.
+
+
+## Continuation — 2026-11-10 (staging cleanup failure reporting)
+
+- `MainActivity` now checks staging-directory cleanup. Cleanup failures after an otherwise successful extraction/copy are reported in the UI; when extraction or SAF copy already failed, the cleanup `IOException` is attached as suppressed and the original failure remains primary.
+- Added `ExtractionStagingCleanup` with focused tests for successful deletion, failed deletion reporting, and suppressed cleanup failure preservation.
+- `gradle testDebugUnitTest --tests "com.arcnova.app.engine.ExtractionStagingCleanupTest"` completed successfully. No APK was built. Physical Android device and real SAF-provider validation remain pending.
