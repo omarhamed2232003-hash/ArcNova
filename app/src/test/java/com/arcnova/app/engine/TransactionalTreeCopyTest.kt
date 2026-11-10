@@ -24,6 +24,7 @@ class TransactionalTreeCopyTest {
         var failWriteName: String? = null
         var failCloseName: String? = null
         var failDeleteName: String? = null
+        var throwDeleteName: String? = null
         private var nextId = 0
 
         override fun childNames(parentDocumentId: String): Set<String> =
@@ -74,6 +75,7 @@ class TransactionalTreeCopyTest {
 
         override fun delete(documentId: String): Boolean {
             val node = nodes[documentId] ?: return false
+            if (node.name == throwDeleteName) throw java.io.IOException("simulated provider delete exception")
             if (node.name == failDeleteName) return false
             if (nodes.values.any { it.parentId == documentId }) return false
             return nodes.remove(documentId) != null
@@ -252,6 +254,36 @@ class TransactionalTreeCopyTest {
             assertTrue(error.message.orEmpty().contains("rollback was incomplete"))
             assertTrue(error.suppressed.isNotEmpty())
             assertTrue(store.paths().contains("created.txt"))
+        } finally {
+            source.deleteRecursively()
+        }
+    }
+
+    @Test fun reportsDeleteExceptionAndContinuesRollingBackOtherCreatedDocuments() {
+        val source = tempDir()
+        val store = FakeTreeStore()
+        val existingId = store.addExisting("keep.txt", "important".toByteArray())
+        store.throwDeleteName = "a-created.txt"
+        store.failCreateName = "z-fail.txt"
+        try {
+            File(source, "a-created.txt").writeText("cannot delete")
+            File(source, "b-removed.txt").writeText("should roll back")
+            File(source, "z-fail.txt").writeText("trigger create failure")
+
+            val error = org.junit.Assert.assertThrows(TreeCopyRollbackException::class.java) {
+                TransactionalTreeCopy.copy(source, "root", store)
+            }
+
+            assertTrue(error.message.orEmpty().contains("1 destination item(s) could not be removed"))
+            assertTrue(error.cause is IllegalStateException)
+            assertEquals(1, error.suppressed.size)
+            assertTrue(error.suppressed.single() is java.io.IOException)
+            assertEquals("simulated provider delete exception", error.suppressed.single().message)
+            assertEquals(setOf("keep.txt", "a-created.txt"), store.paths().toSet())
+            assertEquals(
+                "important",
+                store.nodes.getValue(existingId).bytes.toString(Charsets.UTF_8)
+            )
         } finally {
             source.deleteRecursively()
         }
