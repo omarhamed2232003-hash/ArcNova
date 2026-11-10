@@ -1,7 +1,7 @@
 name: Android build
 on:
   push:
-    branches: [ main, feature/phase1-zip-transactional-rollback ]
+    branches: [ main, 'feature/**' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -21,7 +21,7 @@ jobs:
   preview-apk:
     # Major development changes receive an internal APK preview after unit tests pass.
     # Mark the corresponding development commit with [major-change].
-    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/phase1-zip-transactional-rollback' && contains(github.event.head_commit.message, '[major-change]')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/') && contains(github.event.head_commit.message, '[major-change]')
     needs: test
     runs-on: ubuntu-latest
     steps:

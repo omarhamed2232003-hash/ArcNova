@@ -23,6 +23,9 @@ import com.arcnova.app.engine.ExtractionPolicy
 import com.arcnova.app.engine.ZipExtractionEngine
 import com.arcnova.app.engine.ZipInspectionEngine
 import com.arcnova.app.engine.ZipExtractionProgress
+import com.arcnova.app.engine.ArchiveExtractionProgress
+import com.arcnova.app.engine.TarGzipExtractionEngine
+import com.arcnova.app.engine.ArchiveExtractionCancelledException
 import com.arcnova.app.engine.ZipExtractionCancelledException
 import com.arcnova.app.engine.TreeDocumentStore
 import com.arcnova.app.engine.TreeCopyCancelledException
@@ -53,6 +56,7 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.OpenDocumentTree()
     ) { uri -> uri?.let(::handlePickedDestination) }
     private var selectedArchive: ArchiveSource? = null
+    private var selectedFormat: ArchiveFormat? = null
     private var destinationTree: Uri? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -103,7 +107,7 @@ class MainActivity : ComponentActivity() {
         }
         root.addView(statusLabel)
         root.addView(TextView(this).apply {
-            text = "ZIP extraction is available. Other formats are detected for future engine support."
+            text = "ZIP and TAR extraction plus GZIP decompression are available in this engineering build. ZIP inspection remains ZIP-only."
             textSize = 12f; setPadding(0, 24, 0, 0)
         })
         setContentView(root)
@@ -124,6 +128,7 @@ class MainActivity : ComponentActivity() {
             contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         selectedArchive = null
+        selectedFormat = null
         extractButton.isEnabled = false
         inspectButton.isEnabled = false
         chooseFolderButton.isEnabled = false
@@ -138,22 +143,30 @@ class MainActivity : ComponentActivity() {
                 } ?: throw IllegalStateException("The selected provider could not open this file")
                 val signature = readPrefix(uri)?.let(ArchiveSignatureDetector::detect)
                 val extension = ArchiveFormatDetector.detect(source.displayName)
-                val supported = extension.supportsZipExtraction(signature)
+                val supportedFormat = extension.supportedExtractionFormat(signature)
+                val supported = supportedFormat != null
+                val inspectionSupported = supportedFormat == ArchiveFormat.ZIP
                 mainHandler.post {
                     // Keep unsupported files visible, but never retain them as an actionable archive.
                     selectedArchive = source.takeIf { supported }
+                    selectedFormat = supportedFormat
                     fileLabel.text = buildString {
                         append("Selected: "); append(source.displayName ?: "Unknown")
                         append("\nSize: "); append(source.declaredSizeBytes?.let(::formatBytes) ?: "Unknown")
                         append("\nDetected extension: "); append(extension.format.label)
                         append("\nHeader: "); append(signature?.label ?: "Unavailable")
-                        append("\nZIP extraction: "); append(if (supported) "Supported" else "Not supported yet")
+                        append("\nExtraction: "); append(supportedFormat?.label ?: "Not supported yet")
                     }
+                    extractButton.text = supportedFormat?.let { "Extract ${it.label}" } ?: "Extract archive"
                     extractButton.isEnabled = supported
-                    inspectButton.isEnabled = supported
+                    inspectButton.isEnabled = inspectionSupported
                     chooseFolderButton.isEnabled = supported
                     statusLabel.text = when {
-                        supported -> "Choose a destination folder to continue."
+                        supported -> if (inspectionSupported) {
+                            "ZIP extraction and inspection are available. Choose a destination folder."
+                        } else {
+                            "Extraction is available. Choose a destination folder to continue."
+                        }
                         extension.isMultipart && extension.format == ArchiveFormat.ZIP ->
                             "Multipart ZIP extraction is not supported yet."
                         extension.format != ArchiveFormat.UNKNOWN &&
@@ -194,6 +207,7 @@ class MainActivity : ComponentActivity() {
 
     private fun startInspection() {
         val source = selectedArchive ?: return
+        if (selectedFormat != ArchiveFormat.ZIP) return
         setBusy(true)
         cancelRequested.set(false)
         statusLabel.text = "Inspecting ZIP contents…"
@@ -261,41 +275,71 @@ class MainActivity : ComponentActivity() {
 
     private fun startExtraction() {
         val source = selectedArchive ?: return
+        val format = selectedFormat ?: return
         val tree = destinationTree ?: run {
             statusLabel.text = "Choose an extraction folder first."; return
         }
         setBusy(true)
         cancelRequested.set(false)
-        statusLabel.text = "Preparing ZIP extraction…"
+        statusLabel.text = "Preparing ${format.label} extraction…"
         worker.execute {
             val staging = File(cacheDir, "arcnova-extract-${System.currentTimeMillis()}")
             var operationFailure: Exception? = null
             try {
                 val input = contentResolver.openInputStream(source.uri)
                     ?: throw IllegalStateException("Cannot open selected archive")
-                val result = input.use {
-                    ZipExtractionEngine.extractCentralDirectory(
-                        input = it,
-                        destination = staging,
-                        cacheDirectory = cacheDir,
-                        // Bound the seekable archive spool independently from extracted-output limits.
-                        maxArchiveBytes = MAX_ARCHIVE_INPUT_BYTES,
-                        policy = ExtractionPolicy(),
-                        cancellationRequested = { cancelRequested.get() },
-                        onProgress = { progress -> postProgress(progress) }
-                    )
+                val result = input.use { stream ->
+                    when (format) {
+                        ArchiveFormat.ZIP -> {
+                            val zip = ZipExtractionEngine.extractCentralDirectory(
+                                input = stream,
+                                destination = staging,
+                                cacheDirectory = cacheDir,
+                                maxArchiveBytes = MAX_ARCHIVE_INPUT_BYTES,
+                                policy = ExtractionPolicy(),
+                                cancellationRequested = { cancelRequested.get() },
+                                onProgress = { progress -> postProgress(progress) }
+                            )
+                            zip.filesExtracted to zip.bytesWritten
+                        }
+                        ArchiveFormat.TAR -> {
+                            val tar = TarGzipExtractionEngine.extractTar(
+                                input = stream,
+                                destination = staging,
+                                maxArchiveBytes = MAX_ARCHIVE_INPUT_BYTES,
+                                policy = ExtractionPolicy(),
+                                cancellationRequested = { cancelRequested.get() },
+                                onProgress = { progress -> postProgress(progress) }
+                            )
+                            tar.filesExtracted to tar.bytesWritten
+                        }
+                        ArchiveFormat.GZIP -> {
+                            val gzip = TarGzipExtractionEngine.decompressGzip(
+                                input = stream,
+                                destination = staging,
+                                outputFileName = gzipOutputName(source.displayName),
+                                maxInputBytes = MAX_ARCHIVE_INPUT_BYTES,
+                                policy = ExtractionPolicy(),
+                                cancellationRequested = { cancelRequested.get() },
+                                onProgress = { progress -> postProgress(progress) }
+                            )
+                            gzip.filesExtracted to gzip.bytesWritten
+                        }
+                        else -> throw IllegalStateException("No extraction engine is registered for ${format.label}")
+                    }
                 }
                 if (cancelRequested.get()) throw InterruptedException("Extraction cancelled")
                 val copied = copyDirectoryToTree(staging, tree)
                 mainHandler.post {
-                    statusLabel.text = "Done: ${result.filesExtracted} files, ${formatBytes(result.bytesWritten)} extracted. Copied ${copied.filesCopied} files and ${copied.directoriesCreated} folders."
+                    statusLabel.text = "Done: ${result.first} files, ${formatBytes(result.second)} extracted. Copied ${copied.filesCopied} files and ${copied.directoriesCreated} folders."
                     setBusy(false)
                 }
             } catch (error: Exception) {
                 operationFailure = error
                 mainHandler.post {
                     statusLabel.text = when (error) {
-                        is InterruptedException, is ZipExtractionCancelledException, is TreeCopyCancelledException -> "Extraction cancelled."
+                        is InterruptedException, is ZipExtractionCancelledException,
+                        is ArchiveExtractionCancelledException, is TreeCopyCancelledException -> "Extraction cancelled."
                         is com.arcnova.app.engine.ZipExtractionUnsupportedFeatureException ->
                             "Cannot extract this ZIP: it is encrypted or uses an unsupported compression method. No files were committed."
                         else -> "Extraction failed: ${error.message ?: error.javaClass.simpleName}"
@@ -321,6 +365,22 @@ class MainActivity : ComponentActivity() {
         mainHandler.post {
             statusLabel.text = "Extracting: ${progress.currentEntry}\nFiles: ${progress.filesExtracted} • ${formatBytes(progress.bytesWritten)}"
         }
+    }
+
+    private fun postProgress(progress: ArchiveExtractionProgress) {
+        mainHandler.post {
+            statusLabel.text = "Extracting: ${progress.currentEntry}\nFiles: ${progress.filesExtracted} • ${formatBytes(progress.bytesWritten)}"
+        }
+    }
+
+    private fun gzipOutputName(displayName: String?): String {
+        val name = displayName?.substringAfterLast('/').substringAfterLast('\\')?.trim().orEmpty()
+        val withoutSuffix = when {
+            name.endsWith(".gzip", ignoreCase = true) -> name.dropLast(5)
+            name.endsWith(".gz", ignoreCase = true) -> name.dropLast(3)
+            else -> name
+        }
+        return withoutSuffix.ifBlank { "decompressed.bin" }
     }
 
     private fun copyDirectoryToTree(source: File, treeUri: Uri): TreeCopyResult {
@@ -383,7 +443,7 @@ class MainActivity : ComponentActivity() {
 
     private fun setBusy(busy: Boolean) {
         extractButton.isEnabled = !busy && selectedArchive != null && destinationTree != null
-        inspectButton.isEnabled = !busy && selectedArchive != null
+        inspectButton.isEnabled = !busy && selectedArchive != null && selectedFormat == ArchiveFormat.ZIP
         chooseFolderButton.isEnabled = !busy && selectedArchive != null
         cancelButton.isEnabled = busy
     }

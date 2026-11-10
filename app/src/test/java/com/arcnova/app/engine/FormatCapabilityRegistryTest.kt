@@ -15,11 +15,24 @@ class FormatCapabilityRegistryTest {
         }
     }
 
-    @Test fun zipExtractionIsTheOnlyCurrentlyImplementedArchiveOperation() {
+    @Test fun zipTarAndGzipExtractionAreTheOnlyImplementedGeneralArchiveOperations() {
         val extraction = FormatCapabilityRegistry.available(FormatOperation.EXTRACT)
-        assertEquals(listOf("zip"), extraction.map { it.id })
-        assertTrue(FormatCapabilityRegistry.findById("zip")!!.supports(FormatOperation.EXTRACT))
+        assertEquals(listOf("zip", "tar", "gzip"), extraction.map { it.id })
+        listOf("zip", "tar", "gzip").forEach { id ->
+            assertTrue("$id extraction should be CI-tested", FormatCapabilityRegistry.findById(id)!!.supports(FormatOperation.EXTRACT))
+        }
         assertFalse(FormatCapabilityRegistry.findById("freearc")!!.supports(FormatOperation.EXTRACT))
+        assertFalse(FormatCapabilityRegistry.findById("7z")!!.supports(FormatOperation.EXTRACT))
+        assertFalse(FormatCapabilityRegistry.findById("rar")!!.supports(FormatOperation.EXTRACT))
+    }
+
+    @Test fun tarAndGzipInspectionRemainUnavailable() {
+        listOf("tar", "gzip").forEach { id ->
+            val capability = FormatCapabilityRegistry.findById(id)!!
+            assertEquals(SupportLevel.IMPLEMENTED_CI_TESTED, capability.operationSupport[FormatOperation.EXTRACT])
+            assertEquals(SupportLevel.PLANNED, capability.operationSupport[FormatOperation.INSPECT])
+            assertFalse(capability.supports(FormatOperation.INSPECT))
+        }
     }
 
     @Test fun zipInspectionIsReportedAsImplemented() {

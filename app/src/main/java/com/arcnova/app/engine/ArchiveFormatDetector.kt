@@ -19,16 +19,22 @@ data class ArchiveDetection(
 ) {
     enum class Confidence { EXTENSION_HINT, UNKNOWN }
 
-    fun supportsZipExtraction(signatureFormat: ArchiveFormat?): Boolean {
-        if (isMultipart) return false
-        return when {
-            signatureFormat == ArchiveFormat.ZIP ->
-                format == ArchiveFormat.ZIP || format == ArchiveFormat.UNKNOWN
-            format == ArchiveFormat.ZIP ->
-                signatureFormat == null || signatureFormat == ArchiveFormat.UNKNOWN
-            else -> false
+    fun supportedExtractionFormat(signatureFormat: ArchiveFormat?): ArchiveFormat? {
+        if (isMultipart) return null
+        val hasSignature = signatureFormat != null && signatureFormat != ArchiveFormat.UNKNOWN
+        if (hasSignature && format != ArchiveFormat.UNKNOWN && format != signatureFormat) return null
+        val resolved = if (format != ArchiveFormat.UNKNOWN) {
+            format
+        } else {
+            signatureFormat?.takeIf { it != ArchiveFormat.UNKNOWN } ?: ArchiveFormat.UNKNOWN
+        }
+        return resolved.takeIf {
+            it == ArchiveFormat.ZIP || it == ArchiveFormat.TAR || it == ArchiveFormat.GZIP
         }
     }
+
+    fun supportsZipExtraction(signatureFormat: ArchiveFormat?): Boolean =
+        supportedExtractionFormat(signatureFormat) == ArchiveFormat.ZIP
 }
 
 object ArchiveFormatDetector {

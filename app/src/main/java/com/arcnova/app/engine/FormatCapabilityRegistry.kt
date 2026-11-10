@@ -90,8 +90,32 @@ object FormatCapabilityRegistry {
         ),
         detected("7z", "7-Zip", FormatFamily.GENERAL_ARCHIVE, listOf("7z"), "Detection only; no 7z decoder is registered."),
         detected("rar", "RAR", FormatFamily.GENERAL_ARCHIVE, listOf("rar", "r00"), "Detection only; no RAR decoder is registered."),
-        detected("tar", "TAR", FormatFamily.GENERAL_ARCHIVE, listOf("tar"), "Detection only; no TAR reader is registered."),
-        detected("gzip", "GZIP", FormatFamily.GENERAL_ARCHIVE, listOf("gz", "gzip"), "Detection only; no GZIP decoder is registered."),
+        FormatCapability(
+            id = "tar",
+            displayName = "TAR",
+            family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("tar"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Streaming TAR extraction is implemented with entry-type rejection, path safety, input/output limits, cancellation, rollback, and CI tests. Physical-device validation is pending."
+        ),
+        FormatCapability(
+            id = "gzip",
+            displayName = "GZIP",
+            family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("gz", "gzip"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Single-stream GZIP decompression is implemented with concatenated-member support, CRC validation, input/output limits, expansion-ratio checks, cancellation, rollback, and CI tests. Physical-device validation is pending."
+        ),
         detected("bzip2", "BZIP2", FormatFamily.GENERAL_ARCHIVE, listOf("bz2", "bzip2"), "Detection only; no BZIP2 decoder is registered."),
         detected("xz", "XZ", FormatFamily.GENERAL_ARCHIVE, listOf("xz", "lzma"), "Detection only; no XZ decoder is registered."),
         detected("zstandard", "Zstandard", FormatFamily.GENERAL_ARCHIVE, listOf("zst", "zstd"), "Detection only; no Zstandard decoder is registered."),
