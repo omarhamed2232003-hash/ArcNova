@@ -41,6 +41,11 @@ class CentralDirectoryZipBackendTest {
         repeat(4) { bytes[offset + it] = (value ushr (it * 8)).toByte() }
     }
 
+    private fun writeLittleEndianShort(bytes: ByteArray, offset: Int, value: Int) {
+        bytes[offset] = value.toByte()
+        bytes[offset + 1] = (value ushr 8).toByte()
+    }
+
     @Test fun opensCentralDirectoryAndCopiesPayloadWithCrcValidation() {
         val directory = tempDir()
         val payload = "verified central directory payload".toByteArray()
@@ -340,6 +345,23 @@ class CentralDirectoryZipBackendTest {
                 CentralDirectoryZipBackend.open(ByteArrayInputStream(bytes), directory, 4096)
             }
             assertTrue(directory.listFiles().orEmpty().isEmpty())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test fun rejectsUnknownCompressionMethodDuringPreflightBeforeReturningArchive() {
+        val directory = tempDir()
+        val bytes = archive("unknown-method.bin", "payload".toByteArray())
+        val central = centralDirectoryOffset(bytes)
+        // ZIP method 22222 is deliberately outside the methods implemented by this reader.
+        writeLittleEndianShort(bytes, 8, 22222) // local file header method
+        writeLittleEndianShort(bytes, central + 10, 22222) // central directory method
+        try {
+            org.junit.Assert.assertThrows(CentralDirectoryZipUnsupportedFeatureException::class.java) {
+                CentralDirectoryZipBackend.open(ByteArrayInputStream(bytes), directory, 4096)
+            }
+            assertTrue("Rejected archive must release its seekable spool", directory.listFiles().orEmpty().isEmpty())
         } finally {
             directory.deleteRecursively()
         }
