@@ -26,25 +26,42 @@ class ZipExtractionEngineTest {
         return output.toByteArray()
     }
 
-    private fun withUnsupportedCompressionMethod(bytes: ByteArray): ByteArray {
+    private fun withUnsupportedCompressionMethod(bytes: ByteArray, entryName: String): ByteArray {
         val changed = bytes.copyOf()
-        fun indexOfSignature(signature: IntArray): Int =
-            (0..changed.size - signature.size).firstOrNull { offset ->
-                signature.indices.all { index ->
-                    (changed[offset + index].toInt() and 0xff) == signature[index]
-                }
-            } ?: -1
+        fun u16(offset: Int): Int =
+            (changed[offset].toInt() and 0xff) or ((changed[offset + 1].toInt() and 0xff) shl 8)
+        fun u32(offset: Int): Int =
+            (changed[offset].toInt() and 0xff) or
+                ((changed[offset + 1].toInt() and 0xff) shl 8) or
+                ((changed[offset + 2].toInt() and 0xff) shl 16) or
+                ((changed[offset + 3].toInt() and 0xff) shl 24)
+        fun put16(offset: Int, value: Int) {
+            changed[offset] = value.toByte()
+            changed[offset + 1] = (value ushr 8).toByte()
+        }
 
-        val localHeader = indexOfSignature(intArrayOf(0x50, 0x4b, 0x03, 0x04))
-        val centralHeader = indexOfSignature(intArrayOf(0x50, 0x4b, 0x01, 0x02))
-        check(localHeader >= 0 && centralHeader >= 0)
-        // ZIP compression method is a little-endian 16-bit field.
-        changed[localHeader + 8] = 99
-        changed[localHeader + 9] = 0
-        changed[centralHeader + 10] = 99
-        changed[centralHeader + 11] = 0
+        var central = -1
+        for (offset in 0..changed.size - 46) {
+            if (u32(offset) != 0x02014b50) continue
+            val nameLength = u16(offset + 28)
+            val extraLength = u16(offset + 30)
+            val commentLength = u16(offset + 32)
+            if (nameLength < 0 || offset + 46 + nameLength + extraLength + commentLength > changed.size) continue
+            val name = String(changed, offset + 46, nameLength, Charsets.UTF_8)
+            if (name == entryName) {
+                central = offset
+                break
+            }
+        }
+        check(central >= 0) { "Central directory entry not found: $entryName" }
+        val localHeader = u32(central + 42)
+        check(localHeader >= 0 && u32(localHeader) == 0x04034b50) { "Local header not found" }
+        // Set an unknown method in both local and central directory records.
+        put16(localHeader + 8, 22222)
+        put16(central + 10, 22222)
         return changed
     }
+
 
 
     private fun corruptDataDescriptorCrc(bytes: ByteArray, entryName: String): ByteArray {
@@ -730,6 +747,38 @@ class ZipExtractionEngineTest {
             assertEquals("secret.txt", error.entryName)
             assertEquals(0L, error.bytesWritten)
             assertFalse(File(destination, "secret.txt").exists())
+            assertEquals("preserve", existing.readText())
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test fun unsupportedLaterEntryIsRejectedBeforeAnyEarlierEntryIsWritten() {
+        val destination = tempDir()
+        val cache = tempDir()
+        val existing = File(destination, "keep.txt").apply { writeText("preserve") }
+        val unsupported = withUnsupportedCompressionMethod(
+            archive(
+                "valid-first.txt" to "must not be written".toByteArray(),
+                "unsupported-later.bin" to byteArrayOf(7, 8, 9)
+            ),
+            "unsupported-later.bin"
+        )
+        try {
+            val error = org.junit.Assert.assertThrows(ZipExtractionUnsupportedFeatureException::class.java) {
+                ZipExtractionEngine.extractCentralDirectory(
+                    ByteArrayInputStream(unsupported),
+                    destination,
+                    cache,
+                    maxArchiveBytes = 1024 * 1024L
+                )
+            }
+            assertEquals("unsupported-later.bin", error.entryName)
+            assertEquals(0L, error.bytesWritten)
+            assertFalse(File(destination, "valid-first.txt").exists())
+            assertFalse(File(destination, "unsupported-later.bin").exists())
             assertEquals("preserve", existing.readText())
             assertTrue(cache.listFiles().orEmpty().isEmpty())
         } finally {
