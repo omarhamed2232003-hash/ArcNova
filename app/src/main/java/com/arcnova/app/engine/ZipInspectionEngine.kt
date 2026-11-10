@@ -80,6 +80,8 @@ object ZipInspectionEngine {
             throw ZipInspectionUnsafePathException(unsafe.entryName)
         } catch (integrity: CentralDirectoryZipCrcException) {
             throw ZipInspectionIntegrityException(integrity.entryName, integrity.expectedCrc32, integrity.actualCrc32)
+        } catch (unsupported: CentralDirectoryZipUnsupportedFeatureException) {
+            throw ZipInspectionUnsupportedFeatureException(unsupported.entryName, unsupported)
         } catch (invalid: CentralDirectoryZipException) {
             throw ZipInspectionFormatException(invalid.message ?: "Invalid ZIP archive", invalid)
         }
@@ -222,4 +224,6 @@ class ZipInspectionIntegrityException(
     val actualCrc32: Long
 ) : Exception("CRC32 mismatch for $entryName: expected $expectedCrc32, got $actualCrc32")
 class ZipInspectionFormatException(message: String, cause: Throwable? = null) : Exception(message, cause)
+class ZipInspectionUnsupportedFeatureException(val entryName: String, cause: Throwable? = null) :
+    Exception("ZIP entry requires an unsupported feature: $entryName", cause)
 class ZipInspectionCancelledException : Exception("ZIP inspection cancelled")
