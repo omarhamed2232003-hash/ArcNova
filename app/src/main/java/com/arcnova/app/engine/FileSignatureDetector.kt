@@ -23,7 +23,9 @@ object FileSignatureDetector {
     const val DEFAULT_MAX_HEADER_BYTES = 64 * 1024
 
     fun detect(input: InputStream, maxHeaderBytes: Int = DEFAULT_MAX_HEADER_BYTES): FileSignatureMatch? {
-        require(maxHeaderBytes > 0) { "maxHeaderBytes must be positive" }
+        require(maxHeaderBytes in 1..DEFAULT_MAX_HEADER_BYTES) {
+            "maxHeaderBytes must be between 1 and $DEFAULT_MAX_HEADER_BYTES"
+        }
         val buffer = ByteArray(maxHeaderBytes)
         var count = 0
         while (count < buffer.size) {
