@@ -18,6 +18,53 @@ class Bzip2XzExtractionEngineTest {
         assertDecoded(ArchiveFormat.XZ, xz("ArcNova XZ"))
     }
 
+    @Test fun decompressesConcatenatedBzip2Members() {
+        val first = bzip2("first-")
+        val second = bzip2("second")
+        assertDecodedBytes(ArchiveFormat.BZIP2, first + second, "first-second")
+    }
+
+    @Test fun decompressesConcatenatedXzMembers() {
+        val first = xz("first-")
+        val second = xz("second")
+        assertDecodedBytes(ArchiveFormat.XZ, first + second, "first-second")
+    }
+
+    @Test fun rejectsExpansionRatioBeyondConfiguredLimitAndRollsBack() {
+        val destination = tempDir()
+        try {
+            assertThrows(ArchiveExtractionLimitException::class.java) {
+                Bzip2XzExtractionEngine.decompress(
+                    ArchiveFormat.XZ,
+                    ByteArrayInputStream(xz("A".repeat(64 * 1024))),
+                    destination,
+                    "payload.bin",
+                    1024 * 1024L,
+                    policy = ExtractionPolicy(maxExpansionRatio = 2.0)
+                )
+            }
+            assertTrue(destination.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+        }
+    }
+
+    @Test fun rejectsTruncatedCompressedStreamAndRollsBack() {
+        val destination = tempDir()
+        val encoded = xz("truncated payload").dropLast(4).toByteArray()
+        try {
+            assertThrows(Exception::class.java) {
+                Bzip2XzExtractionEngine.decompress(
+                    ArchiveFormat.XZ, ByteArrayInputStream(encoded), destination,
+                    "payload.bin", 1024 * 1024L
+                )
+            }
+            assertTrue(destination.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+        }
+    }
+
     @Test fun rejectsOutputBeyondConfiguredLimitAndRollsBack() {
         val destination = tempDir()
         try {
@@ -85,6 +132,18 @@ class Bzip2XzExtractionEngineTest {
             assertFalse(closed)
         } finally {
             source.close()
+            destination.deleteRecursively()
+        }
+    }
+
+    private fun assertDecodedBytes(format: ArchiveFormat, encoded: ByteArray, expected: String) {
+        val destination = tempDir()
+        try {
+            Bzip2XzExtractionEngine.decompress(
+                format, ByteArrayInputStream(encoded), destination, "decoded.txt", 1024 * 1024L
+            )
+            assertEquals(expected, File(destination, "decoded.txt").readText())
+        } finally {
             destination.deleteRecursively()
         }
     }
