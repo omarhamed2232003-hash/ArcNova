@@ -701,6 +701,43 @@ class ZipExtractionEngineTest {
         }
     }
 
+    @Test fun centralDirectoryEncryptedEntryIsRejectedBeforeWritingAndCleansSpool() {
+        val destination = tempDir()
+        val cache = tempDir()
+        val existing = File(destination, "keep.txt").apply { writeText("preserve") }
+        val encrypted = archive("secret.txt" to "payload".toByteArray()).copyOf()
+        fun findSignature(signature: IntArray): Int =
+            (0..encrypted.size - signature.size).firstOrNull { offset ->
+                signature.indices.all { index ->
+                    (encrypted[offset + index].toInt() and 0xff) == signature[index]
+                }
+            } ?: -1
+        val localHeader = findSignature(intArrayOf(0x50, 0x4b, 0x03, 0x04))
+        val centralHeader = findSignature(intArrayOf(0x50, 0x4b, 0x01, 0x02))
+        check(localHeader >= 0 && centralHeader >= 0)
+        // General-purpose bit 0 marks traditional ZIP encryption in both headers.
+        encrypted[localHeader + 6] = (encrypted[localHeader + 6].toInt() or 1).toByte()
+        encrypted[centralHeader + 8] = (encrypted[centralHeader + 8].toInt() or 1).toByte()
+        try {
+            val error = org.junit.Assert.assertThrows(ZipExtractionUnsupportedFeatureException::class.java) {
+                ZipExtractionEngine.extractCentralDirectory(
+                    ByteArrayInputStream(encrypted),
+                    destination,
+                    cache,
+                    maxArchiveBytes = 1024 * 1024L
+                )
+            }
+            assertEquals("secret.txt", error.entryName)
+            assertEquals(0L, error.bytesWritten)
+            assertFalse(File(destination, "secret.txt").exists())
+            assertEquals("preserve", existing.readText())
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+            cache.deleteRecursively()
+        }
+    }
+
     @Test fun centralDirectoryPreflightFailureDoesNotCreateDestinationFiles() {
         val destination = tempDir()
         val cache = tempDir()
