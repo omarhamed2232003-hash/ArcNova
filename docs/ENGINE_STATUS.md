@@ -33,3 +33,6 @@ A CI-tested implementation is not automatically device-validated, production-rea
 
 
 - File-analysis resource bound (2026-11-10): both `FileAnalysisAnalyzer.analyze` and the InputStream overload of `FileSignatureDetector.detect` now reject header limits outside 1..64 KiB before allocating the header buffer. This prevents callers from turning a nominally bounded operation into an unbounded large allocation. Regression tests cover both public entry points. Latest code head `88830a01af9ab7d2a92c5a3ed54fdf64e5d2cbd9`; matching CI is pending.
+
+
+- SHA-256 report formatting now converts the fixed 32-byte digest directly into a hexadecimal character array instead of invoking locale-aware string formatting once per byte. This removes dozens of short-lived formatting allocations per file analysis; hashing remains streaming and the digest value is unchanged. A full unsigned-byte-range test vector covers nibble/unsigned conversion. Matching CI is pending.
