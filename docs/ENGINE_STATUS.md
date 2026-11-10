@@ -8,9 +8,9 @@
 | Seekable ZIP archive spool | Implemented, CI-tested | Copies caller-owned input to a bounded private temp file for Central Directory access; supports cancellation and explicit cleanup. |
 | Central Directory ZIP adapter | Integrated into app inspection and extraction paths; CI-tested | MainActivity routes ZIP extraction through `extractCentralDirectory`, which performs bounded seekable spooling and Central Directory preflight before writing. It rejects unsafe, duplicate, and file/directory-conflicting paths and validates actual sizes, expansion ratio, and CRC32 while streaming; filesystem rollback remains enabled. App spool input cap is currently 2 GiB. The legacy streaming engine remains available for regression coverage. Physical-device/provider validation is pending. |
 | ZIP heuristic risk assessment | Implemented, CI-tested | Advisory indicators only; not malware scanning |
-| Generic file signature detection | Implemented, CI-tested | Bounded header recognition; not full-file validation |
+| Generic file signature detection | Implemented, CI-tested | Bounded header recognition for common files and selected game/installer containers (VPK, XP3, Unity bundles, RPA, CAB, USTAR, ISO 9660, OLE Compound File); recognition only, not structural validation or extraction. |
 | Streaming file analysis | Implemented, CI-tested | Size, signature/extension comparison, SHA-256 |
-| Streaming file comparison | Implemented, CI-tested | Compares sizes and SHA-256 without loading full files into memory |
+| Streaming file comparison | Implemented, CI-tested | Compares sizes and SHA-256 without loading whole files into memory |
 | Split-part detection | Not implemented | Research/implementation pending |
 | SREP decoder | Blocked | Upstream source reserves all rights; no permission or redistributable license verified |
 | LOLZ decoder | Blocked | No redistributable native Android ARM64 implementation verified; known CLS plugins are proprietary |
@@ -23,7 +23,7 @@ A CI-tested implementation is not automatically device-validated, production-rea
 - Extraction now translates archive-spool cancellation and input-size-limit failures into the public `ZipExtractionCancelledException` / `ZipExtractionLimitException` contract. This ensures the app-facing engine reports consistent errors even when failure occurs before the Central Directory reader opens.
 
 
-- ZIP extraction now distinguishes policy-limit failures from malformed-archive failures at the backend boundary via `CentralDirectoryZipLimitException`; the app-facing extraction API maps backend cancellation and limit violations to `ZipExtractionCancelledException` and `ZipExtractionLimitException`. The actual-stream total-output rollback test now asserts the public limit exception and verifies prior destination content is preserved. This latest refinement is awaiting CI.
+- ZIP extraction now distinguishes policy-limit failures from malformed-archive failures at the backend boundary via `CentralDirectoryZipLimitException`; the app-facing extraction API maps backend cancellation and limit violations to `ZipExtractionLimitException`. The actual-stream total-output rollback test now asserts the public limit exception and verifies prior destination content is preserved. This latest refinement is awaiting CI.
 
 
 - Latest passing CI run #189 validates the extraction error-contract/actual-output rollback batch on the PR merge ref. A follow-up now normalizes Central Directory preflight policy-limit failures (entry count, declared sizes, expansion ratio, path length/depth) to `CentralDirectoryZipLimitException`, which the extraction facade maps to `ZipExtractionLimitException`. Added a test asserting a declared-output preflight rejection happens before creating the destination and cleans the spool. This newest refinement is pending CI.
