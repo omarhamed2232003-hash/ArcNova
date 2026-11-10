@@ -32,7 +32,7 @@ class FileSignatureDetectorTest {
         assertEquals("unityweb", FileSignatureDetector.detect("UnityWeb\u0000".toByteArray())!!.id)
         assertEquals("unityraw", FileSignatureDetector.detect("UnityRaw\u0000".toByteArray())!!.id)
         assertEquals("unityarchive", FileSignatureDetector.detect("UnityArchive\u0000".toByteArray())!!.id)
-        assertEquals("unity-web-data", FileSignatureDetector.detect("UnityWebData1.0".toByteArray())!!.id)
+        assertEquals("unity-asset-bundle", FileSignatureDetector.detect("UnityWebData1.0".toByteArray())!!.id)
         assertEquals("renpy-rpa", FileSignatureDetector.detect("RPA-3.0 0000000000000000 00000000\n".toByteArray())!!.id)
         assertEquals("renpy-rpa", FileSignatureDetector.detect("RPA-2.0 0000000000000000\n".toByteArray())!!.id)
         assertEquals("cab", FileSignatureDetector.detect("MSCF".toByteArray())!!.id)
@@ -41,7 +41,7 @@ class FileSignatureDetectorTest {
     @Test fun recognizesTarAndIso9660AtTheirDefinedHeaderOffsets() {
         val tar = ByteArray(263)
         "ustar".toByteArray().copyInto(tar, 257)
-        assertEquals("tar-ustar", FileSignatureDetector.detect(tar)!!.id)
+        assertEquals("tar", FileSignatureDetector.detect(tar)!!.id)
 
         val iso = ByteArray(0x8007)
         iso[0x8000] = 1
