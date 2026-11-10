@@ -53,7 +53,8 @@ Complete security review, privacy/data-flow review, dependency and license notic
 
 ## Build and validation policy
 
-- Current CI runs `gradle testDebugUnitTest` only. The single owner-authorized early personal preview APK has already been built and delivered. That exception is consumed: do not build another APK until all eight phases are complete and the owner explicitly authorizes final packaging. Any APK is an internal test artifact, not a user-facing release.
+- Every development commit runs `gradle testDebugUnitTest`. For a major implementation change on the development branch, mark the commit message with `[major-change]`; after unit tests pass, CI automatically assembles and uploads an internal preview APK artifact retained for 7 days. Use this marker for substantial engine integrations, architecture changes, major UI work, or other changes whose behavior needs an end-to-end visual/runtime check; do not use it for routine fixes or documentation-only commits.
+- These recurring internal previews are validation artifacts, not releases, and do not replace unit tests or Phase 7 physical-device qualification. The one-off personal preview exception remains distinct from these CI artifacts. Do not build or distribute a release APK until all eight phases are complete and the owner explicitly authorizes final packaging.
 - Do not spend time polishing the prototype UI before the engine contracts are stable, except for small controls needed to exercise and validate functionality.
 - Do not mark a capability implemented until its actual operation has tests; do not mark it device-validated until it passes on a physical device.
 - Preserve existing files and backups; extend the current architecture incrementally rather than restarting the project.
