@@ -26,6 +26,26 @@ class ZipExtractionEngineTest {
         return output.toByteArray()
     }
 
+    private fun withUnsupportedCompressionMethod(bytes: ByteArray): ByteArray {
+        val changed = bytes.copyOf()
+        fun indexOfSignature(signature: IntArray): Int =
+            (0..changed.size - signature.size).firstOrNull { offset ->
+                signature.indices.all { index ->
+                    (changed[offset + index].toInt() and 0xff) == signature[index]
+                }
+            } ?: -1
+
+        val localHeader = indexOfSignature(intArrayOf(0x50, 0x4b, 0x03, 0x04))
+        val centralHeader = indexOfSignature(intArrayOf(0x50, 0x4b, 0x01, 0x02))
+        check(localHeader >= 0 && centralHeader >= 0)
+        // ZIP compression method is a little-endian 16-bit field.
+        changed[localHeader + 8] = 99
+        changed[localHeader + 9] = 0
+        changed[centralHeader + 10] = 99
+        changed[centralHeader + 11] = 0
+        return changed
+    }
+
 
     private fun corruptDataDescriptorCrc(bytes: ByteArray, entryName: String): ByteArray {
         val corrupted = bytes.copyOf()
@@ -647,6 +667,33 @@ class ZipExtractionEngineTest {
             assertFalse(File(destination, "first.txt").exists())
             assertFalse(File(destination, "second.txt").exists())
             assertEquals("existing", existing.readText())
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test fun centralDirectoryUnsupportedCompressionIsRejectedBeforeWritingAndCleansSpool() {
+        val destination = tempDir()
+        val cache = tempDir()
+        val existing = File(destination, "keep.txt").apply { writeText("preserve") }
+        val unsupported = withUnsupportedCompressionMethod(
+            archive("unsupported.bin" to byteArrayOf(1, 2, 3))
+        )
+        try {
+            val error = org.junit.Assert.assertThrows(ZipExtractionUnsupportedFeatureException::class.java) {
+                ZipExtractionEngine.extractCentralDirectory(
+                    ByteArrayInputStream(unsupported),
+                    destination,
+                    cache,
+                    maxArchiveBytes = 1024 * 1024L
+                )
+            }
+            assertEquals("unsupported.bin", error.entryName)
+            assertEquals(0L, error.bytesWritten)
+            assertFalse(File(destination, "unsupported.bin").exists())
+            assertEquals("preserve", existing.readText())
             assertTrue(cache.listFiles().orEmpty().isEmpty())
         } finally {
             destination.deleteRecursively()
