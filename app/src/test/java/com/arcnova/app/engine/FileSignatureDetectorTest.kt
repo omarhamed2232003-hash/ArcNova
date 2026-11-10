@@ -28,13 +28,13 @@ class FileSignatureDetectorTest {
         assertEquals("xp3", FileSignatureDetector.detect(
             byteArrayOf(0x58, 0x50, 0x33, 0x0d, 0x0a, 0x20, 0x0a, 0x1a, 0x8b.toByte(), 0x67, 0x01)
         )!!.id)
-        assertEquals("unityfs", FileSignatureDetector.detect("UnityFS\u0000".toByteArray())!!.id)
-        assertEquals("unityweb", FileSignatureDetector.detect("UnityWeb\u0000".toByteArray())!!.id)
-        assertEquals("unityraw", FileSignatureDetector.detect("UnityRaw\u0000".toByteArray())!!.id)
-        assertEquals("unityarchive", FileSignatureDetector.detect("UnityArchive\u0000".toByteArray())!!.id)
+        assertEquals("unity-asset-bundle", FileSignatureDetector.detect("UnityFS\u0000".toByteArray())!!.id)
+        assertEquals("unity-asset-bundle", FileSignatureDetector.detect("UnityWeb\u0000".toByteArray())!!.id)
+        assertEquals("unity-asset-bundle", FileSignatureDetector.detect("UnityRaw\u0000".toByteArray())!!.id)
+        assertEquals("unity-asset-bundle", FileSignatureDetector.detect("UnityArchive\u0000".toByteArray())!!.id)
         assertEquals("unity-asset-bundle", FileSignatureDetector.detect("UnityWebData1.0".toByteArray())!!.id)
-        assertEquals("renpy-rpa", FileSignatureDetector.detect("RPA-3.0 0000000000000000 00000000\n".toByteArray())!!.id)
-        assertEquals("renpy-rpa", FileSignatureDetector.detect("RPA-2.0 0000000000000000\n".toByteArray())!!.id)
+        assertEquals("rpa", FileSignatureDetector.detect("RPA-3.0 0000000000000000 00000000\n".toByteArray())!!.id)
+        assertEquals("rpa", FileSignatureDetector.detect("RPA-2.0 0000000000000000\n".toByteArray())!!.id)
         assertEquals("cab", FileSignatureDetector.detect("MSCF".toByteArray())!!.id)
     }
 
