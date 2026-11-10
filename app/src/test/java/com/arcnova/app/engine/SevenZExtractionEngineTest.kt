@@ -56,6 +56,31 @@ class SevenZExtractionEngineTest {
         }
     }
 
+    @Test fun sevenZEntryCountLimitIsEnforcedDuringPreflight() {
+        val archive = createArchive(
+            "first.txt" to "one".toByteArray(),
+            "second.txt" to "two".toByteArray()
+        )
+        val destination = tempDir()
+        try {
+            org.junit.Assert.assertThrows(ArchiveExtractionLimitException::class.java) {
+                ByteArrayInputStream(archive.readBytes()).use { input ->
+                    SevenZExtractionEngine.extract(
+                        input,
+                        destination,
+                        File(destination, "output"),
+                        maxArchiveBytes = 4 * 1024 * 1024L,
+                        policy = ExtractionPolicy(maxEntries = 1)
+                    )
+                }
+            }
+            assertTrue(destination.listFiles().orEmpty().isEmpty())
+        } finally {
+            archive.delete()
+            destination.deleteRecursively()
+        }
+    }
+
     @Test fun sevenZPreflightsPerFileOutputLimit() {
         val archive = createArchive("large.bin" to ByteArray(128))
         val destination = tempDir()
