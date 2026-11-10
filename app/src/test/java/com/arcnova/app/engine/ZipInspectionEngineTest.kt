@@ -199,6 +199,49 @@ class ZipInspectionEngineTest {
         }
     }
 
+    @Test fun centralDirectoryInspectionReportsUnknownCompressionAsUnsupportedFeature() {
+        val cache = createTempDir(prefix = "arcnova-inspect-unknown-method-")
+        try {
+            val bytes = archive("unknown-method.bin" to byteArrayOf(1, 2, 3))
+            val changed = bytes.copyOf()
+            fun u32(offset: Int): Int =
+                (changed[offset].toInt() and 0xff) or
+                    ((changed[offset + 1].toInt() and 0xff) shl 8) or
+                    ((changed[offset + 2].toInt() and 0xff) shl 16) or
+                    ((changed[offset + 3].toInt() and 0xff) shl 24)
+            fun u16(offset: Int): Int =
+                (changed[offset].toInt() and 0xff) or ((changed[offset + 1].toInt() and 0xff) shl 8)
+            var central = -1
+            for (offset in 0..changed.size - 46) {
+                if (u32(offset) != 0x02014b50) continue
+                val nameLength = u16(offset + 28)
+                val name = String(changed, offset + 46, nameLength, Charsets.UTF_8)
+                if (name == "unknown-method.bin") { central = offset; break }
+            }
+            assertTrue(central >= 0)
+            val local = u32(central + 42)
+            changed[local + 8] = 22222.toByte()
+            changed[local + 9] = (22222 ushr 8).toByte()
+            changed[central + 10] = 22222.toByte()
+            changed[central + 11] = (22222 ushr 8).toByte()
+
+            try {
+                ZipInspectionEngine.inspectCentralDirectory(
+                    input = ByteArrayInputStream(changed),
+                    cacheDirectory = cache,
+                    maxArchiveBytes = 4096
+                )
+                fail("Expected unsupported compression feature")
+            } catch (error: ZipInspectionUnsupportedFeatureException) {
+                assertEquals("unknown-method.bin", error.entryName)
+                assertTrue(error.cause is CentralDirectoryZipUnsupportedFeatureException)
+            }
+            assertTrue(cache.listFiles().orEmpty().isEmpty())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
     @Test fun centralDirectoryInspectionHonorsCancellationAndCleansSpool() {
         val cache = createTempDir(prefix = "arcnova-inspect-")
         try {
