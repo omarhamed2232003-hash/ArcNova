@@ -337,3 +337,13 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Matching CI runs for intermediate heads #312–#315 were still running when this handoff was prepared; final code head was queued as Run #316. Verify the final docs-inclusive head and its PR/push unit-test results before marking this bound CI-tested.
 - Current branch remains `feature/phase1-zip-transactional-rollback`; PR #1 remains open/Draft/unmerged; `main` remains `ff50413b044cc788f7d1604728a365a76119889f`. No APK, no device test, no merge.
 - Next task after CI: continue the Phase 1 universal file-analysis foundation with metadata/report edge cases and comparison behavior, then reconcile the Phase 1 exit gate. Do not begin Phase 2 or final UI early.
+
+
+## Continuation — 2026-11-10 (SHA-256 report formatting)
+
+- Verified the bounded-header change on final documentation-inclusive commit `5784c6a9a944a8987dba19dfc7f5c3e845a2007f`: push Run #318 and PR Run #319 both succeeded; `Run unit tests` passed and `preview-apk` was skipped.
+- Continued review of `FileAnalysisAnalyzer` and found avoidable per-byte allocation in digest presentation: `String.format`-style formatting was invoked once for every SHA-256 output byte. Replaced it with direct nibble-to-hex character encoding, preserving the same 64-character lowercase digest and the streaming hash implementation.
+- Added a known SHA-256 test vector for all 256 possible byte values, verifying unsigned-byte and hexadecimal nibble handling.
+- Code/test commits: `f9a53ea8dddd4995dfc389476eeea8142c49a8c8`, `cf9b88c3b777da76b1a35e5ef1269e2580ea43e1`. Documentation updates follow; verify CI for the final docs-inclusive head before marking this optimization CI-tested.
+- No API or report schema change. No APK, device test, PR merge, or change to `main`.
+- Next task: inspect Phase 1 comparison/report semantics and reconcile the documented exit gate against actual code and tests.
