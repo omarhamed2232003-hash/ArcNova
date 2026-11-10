@@ -30,3 +30,6 @@ A CI-tested implementation is not automatically device-validated, production-rea
 
 
 - ZIP inspection error contract refinement (2026-11-10): inspection now distinguishes policy-limit failures, unsafe entry paths, CRC/integrity failures, and invalid archive structure instead of mapping every Central Directory exception to a size-limit error. New regression tests cover unsafe paths, CRC corruption, and file/directory path conflicts. Code commits: `2363268598fcc3c68e5a4312b1835f43b4ab9636`, `83a9f497ac0a0742eef50b4cb9b6175afcbd4560`, `b422019e4261d3e3e876b2ec4fc6ce3bceb611bb`. Matching CI is running; do not mark this refinement CI-tested until Run #245 (or a later run on the same head) succeeds.
+
+
+- File-analysis resource bound (2026-11-10): both `FileAnalysisAnalyzer.analyze` and the InputStream overload of `FileSignatureDetector.detect` now reject header limits outside 1..64 KiB before allocating the header buffer. This prevents callers from turning a nominally bounded operation into an unbounded large allocation. Regression tests cover both public entry points. Latest code head `88830a01af9ab7d2a92c5a3ed54fdf64e5d2cbd9`; matching CI is pending.
