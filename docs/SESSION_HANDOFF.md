@@ -389,3 +389,35 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - `MainActivity` now checks staging-directory cleanup. Cleanup failures after an otherwise successful extraction/copy are reported in the UI; when extraction or SAF copy already failed, the cleanup `IOException` is attached as suppressed and the original failure remains primary.
 - Added `ExtractionStagingCleanup` with focused tests for successful deletion, failed deletion reporting, and suppressed cleanup failure preservation.
 - `gradle testDebugUnitTest --tests "com.arcnova.app.engine.ExtractionStagingCleanupTest"` completed successfully. No APK was built. Physical Android device and real SAF-provider validation remain pending.
+
+
+## Verified continuation — 2026-11-10 (PR merge and current Phase 1 baseline)
+
+- Live GitHub state supersedes earlier handoff entries that describe PR #1 as open or unmerged: PR #1 is **merged** into `main` at merge commit `3fe77df5d50bed9890abbeb3331928229aaab2a7`. The PR was closed/merged at 2026-11-10 14:41:20 UTC. Do not repeat the stale open/Draft status above as current.
+- The active development branch `feature/phase1-zip-transactional-rollback` and `main` currently point to the merged project state at `3fe77df5d50bed9890abbeb3331928229aaab2a7`. The earlier main SHA `ff50413b044cc788f7d1604728a365a76119889f` is the merge base, not current main.
+- Latest Actions run: [Run #42836624965](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42836624965), head SHA `3fe77df5d50bed9890abbeb3331928229aaab2a7`. Job `test` and step `Run unit tests` completed successfully. Job `preview-apk` was skipped. No APK was built.
+- Source review confirms that MainActivity routes ZIP inspection/extraction through the Central Directory backend; the ZIP extraction path uses bounded spooling, metadata preflight, streamed size/CRC checks, and transactional filesystem rollback. SAF destination copy uses `TransactionalTreeCopy` with collision checks, cancellation, created-document tracking, and reverse-order rollback.
+- Phase 1 also includes bounded file-signature detection, streaming file analysis/SHA-256, file comparison, and an operation-level capability registry. Selected CAB/ISO/game-container signatures and split-volume filename patterns are detection hints only; they do not imply parsers or extraction support.
+- Corrected `docs/ENGINE_STATUS.md` and `THIRD_PARTY_NOTICES.md` to remove stale statements that contradicted the merged source (including the outdated claim that Commons Compress was not wired into app extraction/inspection). The exact current revision remains the authority.
+- Phase 1 roadmap exit gate remains: all unit tests pass; inspection/extraction enforce resource limits and cleanup/rollback; failed operations do not silently appear complete; and capability labels match actual code. Latest CI provides the unit-test gate evidence. Real-device/SAF-provider validation is explicitly a later device-qualification requirement, not evidence to invent or claim now.
+- Next engineering action: perform the final Phase 1 source-to-registry and failure-path review, fix any concrete discrepancy found, run unit-test CI on the resulting head, then reconcile the roadmap/handoff gate. Do not start Phase 2 until the documented Phase 1 gate is honestly satisfied.
+- No APK build. Preserve the one-preview-only rule and all eight phases, including mandatory Phase 6.
+
+
+## Verified continuation — 2026-11-10 (unsupported-file action gating and Phase 1 exit review)
+
+- Fixed a picker state inconsistency in `MainActivity`: unsupported or mismatched files remain visible in the selection summary but are no longer retained as an actionable ZIP source. This prevents later destination selection from enabling ZIP actions for an unsupported file.
+- Commit: `59301031f8ede9f2174db6b4a2815dbdf09e7953` — `Prevent unsupported files from enabling ZIP actions`.
+- GitHub Actions [Run #42885080686](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42885080686) completed successfully on that commit. The `test` job and `gradle testDebugUnitTest` step passed; `preview-apk` was skipped. No APK was built.
+- Reviewed the Phase 1 exit gate in `docs/ROADMAP.md`: unit tests pass; ZIP inspection/extraction enforce explicit resource limits and cleanup/rollback; output is staged and committed transactionally, with incomplete SAF rollback explicitly reported; and the operation-level capability registry does not advertise planned detection/inspection/extraction work as implemented. The UI gating fix closes the final picker-state discrepancy found in this review.
+- Phase 1 exit gate is satisfied on the current development branch. Physical-device and real SAF-provider checks remain Phase 7 device qualification, as sequenced in the roadmap; they are not being represented as completed.
+- `docs/ENGINE_STATUS.md` was refreshed to reference the latest verified CI run and current picker behavior.
+- No APK was built, no release was created, and no Phase 2 implementation was started. Preserve all eight phases, including mandatory Phase 6, and the one-preview-only build restriction.
+
+
+## Reconciliation continuation — 2026-11-10
+
+- The Phase 1 PR was reconciled against the current `main` snapshot without rewriting or force-pushing the original development branch. The original PR branch diverged because PR #1 had been squash-merged into `main`; most source files were already byte-identical to `main`.
+- The reconciliation carries forward only the remaining verified file-level differences: the major-change preview workflow policy, required dependency notices, unsupported-file action gating, Windows path normalization in archive risk assessment with regression coverage, and current Phase 1 status/roadmap/handoff documentation.
+- This reconciliation is based on `main` commit `3fe77df5d50bed9890abbeb3331928229aaab2a7`. The new branch must pass fresh GitHub Actions unit tests before Phase 1 is considered closed on `main`.
+- No APK was built. Phase 2 has not started. Physical-device and real SAF-provider validation remain scheduled for Phase 7.

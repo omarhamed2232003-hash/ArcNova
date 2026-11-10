@@ -140,7 +140,8 @@ class MainActivity : ComponentActivity() {
                 val extension = ArchiveFormatDetector.detect(source.displayName)
                 val supported = extension.supportsZipExtraction(signature)
                 mainHandler.post {
-                    selectedArchive = source
+                    // Keep unsupported files visible, but never retain them as an actionable archive.
+                    selectedArchive = source.takeIf { supported }
                     fileLabel.text = buildString {
                         append("Selected: "); append(source.displayName ?: "Unknown")
                         append("\nSize: "); append(source.declaredSizeBytes?.let(::formatBytes) ?: "Unknown")
