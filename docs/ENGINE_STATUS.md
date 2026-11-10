@@ -17,6 +17,8 @@
 | FitGirl installer pipeline | Not implemented | User-provided fixtures only; no game payloads in repository |
 | Physical-device validation | Pending | CI is not proof of Android device behavior |
 
+The capability registry distinguishes byte-signature detection from filename-extension hints: formats known only by an extension (for example FreeArc, KGB, StuffIt, and Unreal PAK) remain PLANNED for DETECT until a real signature detector exists. Extension lookup is a search hint, not proof of file identity.
+
 A CI-tested implementation is not automatically device-validated, production-ready, or malware-safe. Do not assume an algorithm name implies an available redistributable decoder. Record upstream URL, version/commit, license, tested architectures, and fixture provenance before integration. Do not bundle proprietary CLS DLLs/executables or copyrighted game files.
 
 
