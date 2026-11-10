@@ -411,7 +411,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun compressedOutputName(displayName: String?): String {
-        val name = displayName?.substringAfterLast('/')?.substringAfterLast('\\\\')?.trim().orEmpty()
+        val name = displayName?.substringAfterLast('/')?.substringAfterLast('\\')?.trim().orEmpty()
         val withoutSuffix = when {
             name.endsWith(".bzip2", ignoreCase = true) -> name.dropLast(6)
             name.endsWith(".bz2", ignoreCase = true) -> name.dropLast(4)
