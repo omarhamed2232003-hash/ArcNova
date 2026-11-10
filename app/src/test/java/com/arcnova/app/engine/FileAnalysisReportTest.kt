@@ -98,4 +98,14 @@ class FileAnalysisReportTest {
         )
     }
 
+
+    @Test fun encodesSha256BytesAcrossTheFullUnsignedByteRange() {
+        val payload = ByteArray(256) { it.toByte() }
+        val report = FileAnalysisAnalyzer.analyze("all-bytes.bin", ByteArrayInputStream(payload))
+        assertEquals(
+            "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880",
+            report.sha256
+        )
+    }
+
 }
