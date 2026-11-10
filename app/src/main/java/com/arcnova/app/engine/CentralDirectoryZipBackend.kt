@@ -72,6 +72,9 @@ object CentralDirectoryZipBackend {
         var declaredTotal = 0L
         entries.forEach { entry ->
             if (cancellationRequested()) throw CentralDirectoryZipCancelledException()
+            if (!zipFile.canReadEntryData(entry)) {
+                throw CentralDirectoryZipUnsupportedFeatureException(entry.name)
+            }
             val normalized = normalizePath(entry.name, policy)
             if (seenPaths.containsKey(normalized)) {
                 throw CentralDirectoryZipException("Duplicate normalized output path: $normalized")
@@ -242,6 +245,8 @@ class CentralDirectoryZipUnsafePathException(val entryName: String) :
     CentralDirectoryZipException("Unsafe ZIP entry path: $entryName")
 class CentralDirectoryZipCancelledException :
     CentralDirectoryZipException("Central Directory ZIP operation cancelled")
+class CentralDirectoryZipUnsupportedFeatureException(val entryName: String) :
+    CentralDirectoryZipException("ZIP entry uses encryption or an unsupported compression feature: $entryName")
 class CentralDirectoryZipCrcException(
     val entryName: String,
     val expectedCrc32: Long,
