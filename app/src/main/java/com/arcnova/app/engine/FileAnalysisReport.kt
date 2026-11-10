@@ -69,10 +69,20 @@ object FileAnalysisAnalyzer {
             signature = signature,
             extensionMatchesSignature = matches,
             sizeBytes = total,
-            sha256 = digest.digest().joinToString("") { byte ->
-                "%02x".format(byte.toInt() and 0xff)
-            }
+            sha256 = digest.digest().toLowerCaseHex()
         )
+    }
+
+    /** Encodes digest bytes without allocating a formatted String for every byte. */
+    private fun ByteArray.toLowerCaseHex(): String {
+        val alphabet = "0123456789abcdef"
+        val output = CharArray(size * 2)
+        for (index in indices) {
+            val value = this[index].toInt() and 0xff
+            output[index * 2] = alphabet[value ushr 4]
+            output[index * 2 + 1] = alphabet[value and 0x0f]
+        }
+        return String(output)
     }
 
     private fun extensionsEquivalent(left: String, right: String): Boolean {
