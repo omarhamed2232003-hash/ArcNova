@@ -63,14 +63,28 @@ class FormatCapabilityRegistryTest {
         assertTrue(FormatCapabilityRegistry.findByExtension("unknown").isEmpty())
     }
 
-    @Test fun extensionDetectionDoesNotImplyInspectionOrExtraction() {
-        val kgb = FormatCapabilityRegistry.findById("kgb")!!
-        assertEquals(SupportLevel.IMPLEMENTED_CI_TESTED, kgb.operationSupport[FormatOperation.DETECT])
-        assertEquals(SupportLevel.PLANNED, kgb.operationSupport[FormatOperation.INSPECT])
-        assertEquals(SupportLevel.PLANNED, kgb.operationSupport[FormatOperation.EXTRACT])
-        assertTrue(kgb.supports(FormatOperation.DETECT))
-        assertFalse(kgb.supports(FormatOperation.INSPECT))
-        assertFalse(kgb.supports(FormatOperation.EXTRACT))
+    @Test fun extensionHintsDoNotClaimSignatureDetectionOrArchiveOperations() {
+        val extensionOnlyFormats = mapOf(
+            "freearc" to "arc",
+            "winrk" to "rk",
+            "kgb" to "kgb",
+            "uharc" to "uha",
+            "zpaq" to "zpaq",
+            "dgca" to "dgc",
+            "stuffit" to "sitx",
+            "unreal-pak" to "pak",
+            "unreal-iostore" to "utoc"
+        )
+        extensionOnlyFormats.forEach { (id, extension) ->
+            val capability = FormatCapabilityRegistry.findById(id)!!
+            assertEquals("$id extension hint must not claim signature detection",
+                SupportLevel.PLANNED, capability.operationSupport[FormatOperation.DETECT])
+            assertFalse("$id must not be advertised as detected", capability.supports(FormatOperation.DETECT))
+            assertTrue("$id extension should remain searchable",
+                FormatCapabilityRegistry.findByExtension(extension).any { it.id == id })
+            assertEquals(SupportLevel.PLANNED, capability.operationSupport[FormatOperation.INSPECT])
+            assertEquals(SupportLevel.PLANNED, capability.operationSupport[FormatOperation.EXTRACT])
+        }
     }
 
     @Test fun plannedFormatsAreNotReportedAsAvailable() {
