@@ -6,6 +6,8 @@ import java.io.File
 import java.io.FilterInputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import org.apache.commons.compress.compressors.xz.XZCompressorOutputStream
+import org.tukaani.xz.LZMA2Options
+import org.tukaani.xz.LZMAOutputStream
 import org.junit.Assert.*
 import org.junit.Test
 
