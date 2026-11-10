@@ -23,7 +23,9 @@ object FileSignatureDetector {
     const val DEFAULT_MAX_HEADER_BYTES = 64 * 1024
 
     fun detect(input: InputStream, maxHeaderBytes: Int = DEFAULT_MAX_HEADER_BYTES): FileSignatureMatch? {
-        require(maxHeaderBytes > 0) { "maxHeaderBytes must be positive" }
+        require(maxHeaderBytes in 1..DEFAULT_MAX_HEADER_BYTES) {
+            "maxHeaderBytes must be between 1 and $DEFAULT_MAX_HEADER_BYTES"
+        }
         val buffer = ByteArray(maxHeaderBytes)
         var count = 0
         while (count < buffer.size) {
@@ -44,6 +46,9 @@ object FileSignatureDetector {
         if (bytes.isEmpty()) return null
         fun starts(vararg signature: Int): Boolean =
             bytes.size >= signature.size && signature.indices.all { (bytes[it].toInt() and 0xff) == signature[it] }
+        fun startsAt(offset: Int, vararg signature: Int): Boolean =
+            offset >= 0 && bytes.size >= offset + signature.size &&
+                signature.indices.all { (bytes[offset + it].toInt() and 0xff) == signature[it] }
         fun ascii(offset: Int, value: String): Boolean =
             bytes.size >= offset + value.length && value.indices.all { bytes[offset + it].toInt() == value[it].code }
 
@@ -62,6 +67,8 @@ object FileSignatureDetector {
                 match("tiff", "tif", FileCategory.IMAGE, "TIFF image")
             starts(0x25, 0x50, 0x44, 0x46, 0x2d) ->
                 match("pdf", "pdf", FileCategory.DOCUMENT, "PDF document")
+            starts(0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1) ->
+                match("ole-compound", null, FileCategory.DOCUMENT, "OLE Compound File container")
             starts(0x4d, 0x5a) ->
                 match("pe-candidate", "exe", FileCategory.EXECUTABLE, "Windows PE/DOS executable candidate")
             starts(0x7f, 0x45, 0x4c, 0x46) ->
@@ -81,6 +88,31 @@ object FileSignatureDetector {
                 match("xz", "xz", FileCategory.ARCHIVE, "XZ stream")
             starts(0x28, 0xb5, 0x2f, 0xfd) ->
                 match("zstandard", "zst", FileCategory.ARCHIVE, "Zstandard frame")
+            ascii(0, "MSCF") ->
+                match("cab", "cab", FileCategory.ARCHIVE, "Microsoft Cabinet archive")
+            starts(0x34, 0x12, 0xaa, 0x55) ->
+                match("source-vpk", "vpk", FileCategory.ARCHIVE, "Valve package (VPK) container")
+            starts(0x58, 0x50, 0x33, 0x0d, 0x0a, 0x20, 0x0a, 0x1a, 0x8b, 0x67, 0x01) ->
+                match("xp3", "xp3", FileCategory.ARCHIVE, "KiriKiri XP3 archive")
+            ascii(0, "UnityWebData1.0") ->
+                match("unity-asset-bundle", null, FileCategory.ARCHIVE, "Unity Web data container")
+            (ascii(0, "UnityFS") && bytes.getOrNull(7) == 0.toByte()) ->
+                match("unity-asset-bundle", "bundle", FileCategory.ARCHIVE, "UnityFS asset bundle")
+            (ascii(0, "UnityWeb") && bytes.getOrNull(8) == 0.toByte()) ->
+                match("unity-asset-bundle", "unity3d", FileCategory.ARCHIVE, "Legacy UnityWeb asset bundle")
+            (ascii(0, "UnityRaw") && bytes.getOrNull(8) == 0.toByte()) ->
+                match("unity-asset-bundle", "unity3d", FileCategory.ARCHIVE, "Legacy UnityRaw asset bundle")
+            (ascii(0, "UnityArchive") && bytes.getOrNull(12) == 0.toByte()) ->
+                match("unity-asset-bundle", "unity3d", FileCategory.ARCHIVE, "Legacy UnityArchive container")
+            ascii(0, "RPA-3.0 ") || ascii(0, "RPA-2.0 ") ->
+                match("rpa", "rpa", FileCategory.ARCHIVE, "Ren'Py RPA archive")
+            ascii(257, "ustar") ->
+                match("tar", "tar", FileCategory.ARCHIVE, "POSIX USTAR archive")
+            (bytes.size >= 0x8007 &&
+                ascii(0x8001, "CD001") &&
+                (bytes[0x8000].toInt() and 0xff) in setOf(1, 2, 3, 255) &&
+                (bytes[0x8006].toInt() and 0xff) == 1) ->
+                match("iso9660", "iso", FileCategory.ARCHIVE, "ISO 9660 optical disc image")
             ascii(0, "SQLite format 3\u0000") ->
                 match("sqlite", "sqlite", FileCategory.DATABASE, "SQLite database")
             ascii(0, "ID3") || (bytes.size >= 2 &&

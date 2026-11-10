@@ -47,4 +47,65 @@ class FileAnalysisReportTest {
         assertEquals(3L, report.sizeBytes)
         assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", report.sha256)
     }
+
+    @Test fun keepsCallerOwnedStreamOpenAfterSuccessfulAnalysis() {
+        var closed = false
+        val source = object : ByteArrayInputStream("streamed payload".toByteArray()) {
+            override fun close() {
+                closed = true
+                super.close()
+            }
+        }
+
+        val report = FileAnalysisAnalyzer.analyze("payload.bin", source)
+
+        assertEquals(16L, report.sizeBytes)
+        assertFalse(closed)
+    }
+
+    @Test fun propagatesReadFailureInsteadOfReturningPartialAnalysis() {
+        var closed = false
+        val source = object : java.io.InputStream() {
+            private var delivered = false
+            override fun read(): Int {
+                if (!delivered) {
+                    delivered = true
+                    return 'x'.code
+                }
+                throw java.io.IOException("simulated source failure")
+            }
+            override fun close() {
+                closed = true
+            }
+        }
+
+        try {
+            FileAnalysisAnalyzer.analyze("partial.bin", source)
+            fail("Expected the source read failure to propagate")
+        } catch (expected: java.io.IOException) {
+            assertEquals("simulated source failure", expected.message)
+        }
+        assertFalse(closed)
+    }
+
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsAnalysisHeaderLimitAboveBoundedMaximum() {
+        FileAnalysisAnalyzer.analyze(
+            "large-header.bin",
+            ByteArrayInputStream(byteArrayOf(1)),
+            FileSignatureDetector.DEFAULT_MAX_HEADER_BYTES + 1
+        )
+    }
+
+
+    @Test fun encodesSha256BytesAcrossTheFullUnsignedByteRange() {
+        val payload = ByteArray(256) { it.toByte() }
+        val report = FileAnalysisAnalyzer.analyze("all-bytes.bin", ByteArrayInputStream(payload))
+        assertEquals(
+            "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880",
+            report.sha256
+        )
+    }
+
 }

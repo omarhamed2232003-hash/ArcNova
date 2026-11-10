@@ -18,10 +18,22 @@ data class ArchiveDetection(
     val confidence: Confidence = Confidence.EXTENSION_HINT
 ) {
     enum class Confidence { EXTENSION_HINT, UNKNOWN }
+
+    fun supportsZipExtraction(signatureFormat: ArchiveFormat?): Boolean {
+        if (isMultipart) return false
+        return when {
+            signatureFormat == ArchiveFormat.ZIP ->
+                format == ArchiveFormat.ZIP || format == ArchiveFormat.UNKNOWN
+            format == ArchiveFormat.ZIP ->
+                signatureFormat == null || signatureFormat == ArchiveFormat.UNKNOWN
+            else -> false
+        }
+    }
 }
 
 object ArchiveFormatDetector {
     private val numberedPart = Regex("^(.*)\\.(zip|7z)\\.(\\d{3,})$", RegexOption.IGNORE_CASE)
+    private val splitZipPart = Regex("^(.*)\\.z(\\d{2,})$", RegexOption.IGNORE_CASE)
     private val rarPart = Regex("^.*\\.part(\\d+)\\.rar$", RegexOption.IGNORE_CASE)
     private val oldRarPart = Regex("^.*\\.r(\\d{2})$", RegexOption.IGNORE_CASE)
 
@@ -32,6 +44,9 @@ object ArchiveFormatDetector {
         numberedPart.matchEntire(name)?.let { match ->
             val format = if (match.groupValues[2] == "zip") ArchiveFormat.ZIP else ArchiveFormat.SEVEN_ZIP
             return ArchiveDetection(format, true, match.groupValues[3].toIntOrNull())
+        }
+        splitZipPart.matchEntire(name)?.let { match ->
+            return ArchiveDetection(ArchiveFormat.ZIP, true, match.groupValues[2].toIntOrNull())
         }
         rarPart.matchEntire(name)?.let { match ->
             return ArchiveDetection(ArchiveFormat.RAR, true, match.groupValues[1].toIntOrNull())

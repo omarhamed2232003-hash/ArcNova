@@ -2,6 +2,7 @@ package com.arcnova.app.engine
 
 import java.io.FilterInputStream
 import java.io.InputStream
+import java.io.OutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
@@ -13,6 +14,90 @@ import java.util.zip.ZipInputStream
  * validator and not a malware/safety verdict.
  */
 object ZipInspectionEngine {
+    /**
+     * Central-Directory-first inspection used by the app's current ZIP workflow.
+     * It validates every payload (actual size and CRC) without writing extracted
+     * data to storage. The backend performs path, duplicate, metadata and ratio
+     * preflight before any payload is consumed.
+     */
+    fun inspectCentralDirectory(
+        input: InputStream,
+        cacheDirectory: java.io.File,
+        maxArchiveBytes: Long,
+        limits: ZipInspectionLimits = ZipInspectionLimits(),
+        cancellationRequested: () -> Boolean = { false }
+    ): ZipInspectionReport {
+        val policy = CentralDirectoryZipPolicy(
+            maxEntries = limits.maxEntries,
+            maxSingleFileBytes = limits.maxSingleEntryBytes,
+            maxTotalOutputBytes = limits.maxTotalUncompressedBytes
+        )
+        val entries = mutableListOf<ZipEntryReport>()
+        var totalBytes = 0L
+        val sink = object : OutputStream() {
+            override fun write(value: Int) = Unit
+            override fun write(buffer: ByteArray, offset: Int, length: Int) = Unit
+        }
+        try {
+            CentralDirectoryZipBackend.open(
+                input = input,
+                cacheDirectory = cacheDirectory,
+                maxArchiveBytes = maxArchiveBytes,
+                policy = policy,
+                cancellationRequested = cancellationRequested
+            ).use { archive ->
+                archive.entries.forEach { entry ->
+                    if (cancellationRequested()) throw ZipInspectionCancelledException()
+                    val copied = archive.copyEntry(entry, sink)
+                    if (copied.bytesCopied > Long.MAX_VALUE - totalBytes) {
+                        throw ZipInspectionLimitException("Uncompressed byte count overflow")
+                    }
+                    totalBytes += copied.bytesCopied
+                    entries += ZipEntryReport(
+                        name = entry.name,
+                        isDirectory = entry.isDirectory,
+                        declaredSizeBytes = entry.size,
+                        declaredCompressedSizeBytes = entry.compressedSize,
+                        actualSizeBytes = copied.bytesCopied,
+                        crc32 = copied.crc32.takeIf { !entry.isDirectory }
+                            ?: entry.crc.takeIf { it >= 0L },
+                        hasUnsafePath = false,
+                        isDuplicateName = false
+                    )
+                }
+            }
+        } catch (cancelled: ArchiveSpoolCancelledException) {
+            // Cancellation can happen while copying the source stream into the
+            // seekable cache file, before a CentralDirectoryZipArchive exists.
+            throw ZipInspectionCancelledException()
+        } catch (limit: ArchiveSpoolLimitException) {
+            throw ZipInspectionLimitException(limit.message ?: "ZIP archive exceeds input limit")
+        } catch (cancelled: CentralDirectoryZipCancelledException) {
+            throw ZipInspectionCancelledException()
+        } catch (limit: CentralDirectoryZipLimitException) {
+            throw ZipInspectionLimitException(limit.message ?: "ZIP inspection limit exceeded")
+        } catch (unsafe: CentralDirectoryZipUnsafePathException) {
+            throw ZipInspectionUnsafePathException(unsafe.entryName)
+        } catch (duplicate: CentralDirectoryZipDuplicatePathException) {
+            throw ZipInspectionDuplicatePathException(duplicate.entryName, duplicate.normalizedPath)
+        } catch (integrity: CentralDirectoryZipCrcException) {
+            throw ZipInspectionIntegrityException(integrity.entryName, integrity.expectedCrc32, integrity.actualCrc32)
+        } catch (unsupported: CentralDirectoryZipUnsupportedFeatureException) {
+            throw ZipInspectionUnsupportedFeatureException(unsupported.entryName, unsupported)
+        } catch (invalid: CentralDirectoryZipException) {
+            throw ZipInspectionFormatException(invalid.message ?: "Invalid ZIP archive", invalid)
+        }
+
+        return ZipInspectionReport(
+            entries = entries,
+            fileCount = entries.count { !it.isDirectory },
+            directoryCount = entries.count { it.isDirectory },
+            totalUncompressedBytes = totalBytes,
+            unsafePathCount = 0,
+            duplicateNameCount = 0
+        )
+    }
+
     fun inspect(
         input: InputStream,
         limits: ZipInspectionLimits = ZipInspectionLimits(),
@@ -133,4 +218,16 @@ data class ZipInspectionReport(
 )
 
 class ZipInspectionLimitException(message: String) : Exception(message)
+class ZipInspectionUnsafePathException(val entryName: String) :
+    Exception("Unsafe ZIP entry path: $entryName")
+class ZipInspectionDuplicatePathException(val entryName: String, val normalizedPath: String) :
+    Exception("Duplicate normalized ZIP entry path: $normalizedPath (entry: $entryName)")
+class ZipInspectionIntegrityException(
+    val entryName: String,
+    val expectedCrc32: Long,
+    val actualCrc32: Long
+) : Exception("CRC32 mismatch for $entryName: expected $expectedCrc32, got $actualCrc32")
+class ZipInspectionFormatException(message: String, cause: Throwable? = null) : Exception(message, cause)
+class ZipInspectionUnsupportedFeatureException(val entryName: String, cause: Throwable? = null) :
+    Exception("ZIP entry requires an unsupported feature: $entryName", cause)
 class ZipInspectionCancelledException : Exception("ZIP inspection cancelled")

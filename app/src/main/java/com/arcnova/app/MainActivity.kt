@@ -1,8 +1,6 @@
 package com.arcnova.app
 
-import android.app.Activity
 import android.app.AlertDialog
-import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -13,23 +11,32 @@ import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import com.arcnova.app.engine.ArchiveFormat
 import com.arcnova.app.engine.ArchiveRiskAssessment
 import com.arcnova.app.engine.ArchiveFormatDetector
 import com.arcnova.app.engine.ArchiveSignatureDetector
 import com.arcnova.app.engine.ArchiveSource
+import com.arcnova.app.engine.ExtractionStagingCleanup
 import com.arcnova.app.engine.ExtractionPolicy
 import com.arcnova.app.engine.ZipExtractionEngine
 import com.arcnova.app.engine.ZipInspectionEngine
 import com.arcnova.app.engine.ZipExtractionProgress
 import com.arcnova.app.engine.ZipExtractionCancelledException
+import com.arcnova.app.engine.TreeDocumentStore
+import com.arcnova.app.engine.TreeCopyCancelledException
+import com.arcnova.app.engine.TransactionalTreeCopy
+import com.arcnova.app.engine.TreeCopyResult
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
+    companion object {
+        private const val MAX_ARCHIVE_INPUT_BYTES = 2L * 1024L * 1024L * 1024L
+    }
+
     private lateinit var fileLabel: TextView
     private lateinit var statusLabel: TextView
     private lateinit var chooseFolderButton: Button
@@ -39,8 +46,12 @@ class MainActivity : Activity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     private val cancelRequested = AtomicBoolean(false)
-    private val requestPick = 1001
-    private val requestFolder = 1002
+    private val openArchiveDocument = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let(::handlePickedArchive) }
+    private val openDestinationTree = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri -> uri?.let(::handlePickedDestination) }
     private var selectedArchive: ArchiveSource? = null
     private var destinationTree: Uri? = null
 
@@ -99,52 +110,84 @@ class MainActivity : Activity() {
     }
 
     private fun pickFile() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "*/*"
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-        }
-        startActivityForResult(intent, requestPick)
+        openArchiveDocument.launch(arrayOf("*/*"))
     }
 
     private fun pickDestination() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
-                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-        }
-        startActivityForResult(intent, requestFolder)
+        openDestinationTree.launch(null)
     }
 
-    @Deprecated("Platform document picker retained for broad compatibility")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode != RESULT_OK || data?.data == null) return
-        val uri = data.data!!
-        if (requestCode == requestPick) {
-            retainPermission(uri, data.flags, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            selectedArchive = readArchiveSource(uri)
-            val source = selectedArchive ?: run {
-                fileLabel.text = "Could not inspect selected file"; return
+    private fun handlePickedArchive(uri: Uri) {
+        // OpenDocument is the lifecycle-aware AndroidX contract for ACTION_OPEN_DOCUMENT.
+        // Persist the grant when the provider supports it; the active URI remains usable either way.
+        runCatching {
+            contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        selectedArchive = null
+        extractButton.isEnabled = false
+        inspectButton.isEnabled = false
+        chooseFolderButton.isEnabled = false
+        fileLabel.text = "Checking selected file…"
+        statusLabel.text = "Opening file provider…"
+        worker.execute {
+            try {
+                val source = readArchiveSource(uri)
+                    ?: throw IllegalStateException("The selected provider did not return readable file information")
+                contentResolver.openInputStream(uri)?.use { input ->
+                    if (input.read() < 0) throw IllegalStateException("The selected file is empty or unreadable")
+                } ?: throw IllegalStateException("The selected provider could not open this file")
+                val signature = readPrefix(uri)?.let(ArchiveSignatureDetector::detect)
+                val extension = ArchiveFormatDetector.detect(source.displayName)
+                val supported = extension.supportsZipExtraction(signature)
+                mainHandler.post {
+                    selectedArchive = source
+                    fileLabel.text = buildString {
+                        append("Selected: "); append(source.displayName ?: "Unknown")
+                        append("\nSize: "); append(source.declaredSizeBytes?.let(::formatBytes) ?: "Unknown")
+                        append("\nDetected extension: "); append(extension.format.label)
+                        append("\nHeader: "); append(signature?.label ?: "Unavailable")
+                        append("\nZIP extraction: "); append(if (supported) "Supported" else "Not supported yet")
+                    }
+                    extractButton.isEnabled = supported
+                    inspectButton.isEnabled = supported
+                    chooseFolderButton.isEnabled = supported
+                    statusLabel.text = when {
+                        supported -> "Choose a destination folder to continue."
+                        extension.isMultipart && extension.format == ArchiveFormat.ZIP ->
+                            "Multipart ZIP extraction is not supported yet."
+                        extension.format != ArchiveFormat.UNKNOWN &&
+                            signature != null && signature != ArchiveFormat.UNKNOWN &&
+                            extension.format != signature ->
+                            "File extension and header do not match. Extraction is disabled."
+                        else -> "File is readable, but its format is not supported yet."
+                    }
+                }
+            } catch (error: Exception) {
+                mainHandler.post {
+                    selectedArchive = null
+                    fileLabel.text = "Could not read selected file"
+                    statusLabel.text = "File access failed: ${error.message ?: error.javaClass.simpleName}"
+                }
             }
-            val extension = ArchiveFormatDetector.detect(source.displayName)
-            val signature = readPrefix(uri)?.let(ArchiveSignatureDetector::detect)
-            val supported = extension.format == ArchiveFormat.ZIP || signature == ArchiveFormat.ZIP
-            fileLabel.text = buildString {
-                append("Selected: "); append(source.displayName ?: "Unknown")
-                append("\nSize: "); append(source.declaredSizeBytes?.let(::formatBytes) ?: "Unknown")
-                append("\nDetected extension: "); append(extension.format.label)
-                append("\nHeader: "); append(signature?.label ?: "Unavailable")
-                append("\nZIP extraction: "); append(if (supported) "Supported" else "Not supported yet")
-            }
-            extractButton.isEnabled = supported
-            inspectButton.isEnabled = supported
-            chooseFolderButton.isEnabled = supported
-            statusLabel.text = "Choose a destination folder to continue."
-        } else if (requestCode == requestFolder) {
-            retainPermission(uri, data.flags,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        }
+    }
+
+    private fun handlePickedDestination(uri: Uri) {
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+        }
+        try {
+            DocumentsContract.getTreeDocumentId(uri)
             destinationTree = uri
             statusLabel.text = "Destination folder selected."
+            extractButton.isEnabled = selectedArchive != null
+        } catch (error: Exception) {
+            destinationTree = null
+            statusLabel.text = "Could not access selected folder: ${error.message ?: error.javaClass.simpleName}"
         }
     }
 
@@ -158,7 +201,12 @@ class MainActivity : Activity() {
                 val input = contentResolver.openInputStream(source.uri)
                     ?: throw IllegalStateException("Cannot open selected archive")
                 val report = input.use {
-                    ZipInspectionEngine.inspect(it, cancellationRequested = { cancelRequested.get() })
+                    ZipInspectionEngine.inspectCentralDirectory(
+                        input = it,
+                        cacheDirectory = cacheDir,
+                        maxArchiveBytes = MAX_ARCHIVE_INPUT_BYTES,
+                        cancellationRequested = { cancelRequested.get() }
+                    )
                 }
                 val risk = ArchiveRiskAssessment.assess(report)
                 val preview = report.entries.take(40).joinToString("\n") { entry ->
@@ -194,8 +242,16 @@ class MainActivity : Activity() {
                 }
             } catch (error: Exception) {
                 mainHandler.post {
-                    statusLabel.text = if (error is com.arcnova.app.engine.ZipInspectionCancelledException) "Inspection cancelled."
-                        else "Inspection failed: ${error.message ?: error.javaClass.simpleName}"
+                    statusLabel.text = when (error) {
+                        is com.arcnova.app.engine.ZipInspectionCancelledException -> "Inspection cancelled."
+                        is com.arcnova.app.engine.ZipInspectionUnsafePathException ->
+                            "Inspection rejected an unsafe ZIP path. No risk report was produced."
+                        is com.arcnova.app.engine.ZipInspectionDuplicatePathException ->
+                            "Inspection rejected duplicate ZIP paths. No risk report was produced."
+                        is com.arcnova.app.engine.ZipInspectionUnsupportedFeatureException ->
+                            "This ZIP uses encryption or a compression method ArcNova cannot read. No files were written."
+                        else -> "Inspection failed: ${error.message ?: error.javaClass.simpleName}"
+                    }
                     setBusy(false)
                 }
             }
@@ -212,12 +268,18 @@ class MainActivity : Activity() {
         statusLabel.text = "Preparing ZIP extraction…"
         worker.execute {
             val staging = File(cacheDir, "arcnova-extract-${System.currentTimeMillis()}")
+            var operationFailure: Exception? = null
             try {
                 val input = contentResolver.openInputStream(source.uri)
                     ?: throw IllegalStateException("Cannot open selected archive")
                 val result = input.use {
-                    ZipExtractionEngine.extract(
-                        it, staging, ExtractionPolicy(),
+                    ZipExtractionEngine.extractCentralDirectory(
+                        input = it,
+                        destination = staging,
+                        cacheDirectory = cacheDir,
+                        // Bound the seekable archive spool independently from extracted-output limits.
+                        maxArchiveBytes = MAX_ARCHIVE_INPUT_BYTES,
+                        policy = ExtractionPolicy(),
                         cancellationRequested = { cancelRequested.get() },
                         onProgress = { progress -> postProgress(progress) }
                     )
@@ -225,19 +287,31 @@ class MainActivity : Activity() {
                 if (cancelRequested.get()) throw InterruptedException("Extraction cancelled")
                 val copied = copyDirectoryToTree(staging, tree)
                 mainHandler.post {
-                    statusLabel.text = "Done: ${result.filesExtracted} files, ${formatBytes(result.bytesWritten)} extracted. Copied $copied items."
+                    statusLabel.text = "Done: ${result.filesExtracted} files, ${formatBytes(result.bytesWritten)} extracted. Copied ${copied.filesCopied} files and ${copied.directoriesCreated} folders."
                     setBusy(false)
                 }
             } catch (error: Exception) {
+                operationFailure = error
                 mainHandler.post {
                     statusLabel.text = when (error) {
-                        is InterruptedException, is ZipExtractionCancelledException -> "Extraction cancelled."
+                        is InterruptedException, is ZipExtractionCancelledException, is TreeCopyCancelledException -> "Extraction cancelled."
+                        is com.arcnova.app.engine.ZipExtractionUnsupportedFeatureException ->
+                            "Cannot extract this ZIP: it is encrypted or uses an unsupported compression method. No files were committed."
                         else -> "Extraction failed: ${error.message ?: error.javaClass.simpleName}"
                     }
                     setBusy(false)
                 }
             } finally {
-                staging.deleteRecursively()
+                val cleanupFailure = ExtractionStagingCleanup.cleanup(staging, operationFailure)
+                if (cleanupFailure != null) {
+                    mainHandler.post {
+                        statusLabel.text = if (operationFailure == null) {
+                            "Extraction completed, but temporary staging data could not be removed from app cache."
+                        } else {
+                            "${statusLabel.text}\nCleanup warning: temporary staging data could not be removed from app cache."
+                        }
+                    }
+                }
             }
         }
     }
@@ -248,29 +322,62 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun copyDirectoryToTree(source: File, treeUri: Uri): Int {
+    private fun copyDirectoryToTree(source: File, treeUri: Uri): TreeCopyResult {
         val rootId = DocumentsContract.getTreeDocumentId(treeUri)
-        val rootUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, rootId)
-        return copyChildren(source, rootUri)
-    }
-
-    private fun copyChildren(sourceDir: File, parentUri: Uri): Int {
-        var copied = 0
-        sourceDir.listFiles()?.forEach { child ->
-            if (cancelRequested.get()) throw InterruptedException("Copy cancelled")
-            val mime = if (child.isDirectory) "vnd.android.document/directory" else "application/octet-stream"
-            val created = DocumentsContract.createDocument(contentResolver, parentUri, mime, child.name)
-                ?: throw IllegalStateException("Cannot create destination item: ${child.name}")
-            if (child.isDirectory) {
-                copied += copyChildren(child, created)
-            } else {
-                contentResolver.openOutputStream(created, "w")?.use { output ->
-                    FileInputStream(child).use { input -> input.copyTo(output, 64 * 1024) }
-                } ?: throw IllegalStateException("Cannot write destination file: ${child.name}")
-                copied++
+        val store = object : TreeDocumentStore {
+            override fun childNames(parentDocumentId: String): Set<String> {
+                val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocumentId)
+                val projection = arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                val names = linkedSetOf<String>()
+                val cursor = contentResolver.query(childrenUri, projection, null, null, null)
+                    ?: throw IllegalStateException("Cannot list destination folder contents")
+                cursor.use {
+                    val nameIndex = it.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                    if (nameIndex < 0) throw IllegalStateException("Destination provider did not return item names")
+                    while (it.moveToNext()) {
+                        if (!it.isNull(nameIndex)) names.add(it.getString(nameIndex))
+                    }
+                }
+                return names
             }
+
+            override fun createDirectory(parentDocumentId: String, name: String): String {
+                val parentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, parentDocumentId)
+                val created = DocumentsContract.createDocument(
+                    contentResolver, parentUri, DocumentsContract.Document.MIME_TYPE_DIR, name
+                ) ?: throw IllegalStateException("Cannot create destination folder: $name")
+                return DocumentsContract.getDocumentId(created)
+            }
+
+            override fun createFile(parentDocumentId: String, name: String, mimeType: String): String {
+                val parentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, parentDocumentId)
+                val created = DocumentsContract.createDocument(contentResolver, parentUri, mimeType, name)
+                    ?: throw IllegalStateException("Cannot create destination file: $name")
+                return DocumentsContract.getDocumentId(created)
+            }
+
+            override fun openOutput(documentId: String) =
+                contentResolver.openOutputStream(
+                    DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId), "w"
+                ) ?: throw IllegalStateException("Cannot open destination item for writing")
+
+            override fun delete(documentId: String): Boolean =
+                DocumentsContract.deleteDocument(
+                    contentResolver, DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
+                )
         }
-        return copied
+
+        return TransactionalTreeCopy.copy(
+            source,
+            rootId,
+            store,
+            cancellationRequested = { cancelRequested.get() },
+            onProgress = { progress ->
+                mainHandler.post {
+                    statusLabel.text = "Copying: ${progress.currentPath}\nFiles: ${progress.filesCopied} • ${formatBytes(progress.bytesCopied)}"
+                }
+            }
+        )
     }
 
     private fun setBusy(busy: Boolean) {
@@ -278,14 +385,6 @@ class MainActivity : Activity() {
         inspectButton.isEnabled = !busy && selectedArchive != null
         chooseFolderButton.isEnabled = !busy && selectedArchive != null
         cancelButton.isEnabled = busy
-    }
-
-    private fun retainPermission(uri: Uri, flags: Int, requested: Int) {
-        val granted = flags and requested
-        val persistable = flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION != 0
-        if (persistable && granted != 0) runCatching {
-            contentResolver.takePersistableUriPermission(uri, granted)
-        }
     }
 
     private fun readPrefix(uri: Uri): ByteArray? = runCatching {
