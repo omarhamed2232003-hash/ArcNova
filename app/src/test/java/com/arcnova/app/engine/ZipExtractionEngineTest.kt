@@ -696,7 +696,8 @@ class ZipExtractionEngineTest {
         val cache = tempDir()
         val existing = File(destination, "keep.txt").apply { writeText("preserve") }
         val unsupported = withUnsupportedCompressionMethod(
-            archive("unsupported.bin" to byteArrayOf(1, 2, 3))
+            archive("unsupported.bin" to byteArrayOf(1, 2, 3)),
+            "unsupported.bin"
         )
         try {
             val error = org.junit.Assert.assertThrows(ZipExtractionUnsupportedFeatureException::class.java) {
