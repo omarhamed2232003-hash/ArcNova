@@ -11,7 +11,7 @@ import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
 import org.tukaani.xz.LZMAInputStream
 
 /**
- * BZIP2 and XZ single-stream decompression.
+ * BZIP2, XZ, and legacy LZMA-alone single-stream decompression.
  *
  * These formats produce one output file rather than a multi-entry archive.
  * The caller supplies the output name; compressed-stream metadata is never

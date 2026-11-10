@@ -150,6 +150,17 @@ object FormatCapabilityRegistry {
             ),
             notes = "Single-stream XZ decompression uses Commons Compress 1.28.0 and XZ for Java 1.12 with a 128 MiB decoder memory limit, concatenated-stream support, bounded input/output, expansion-ratio checks, cancellation, rollback, and CI tests. Physical-device validation is pending. LZMA-alone (.lzma) remains unsupported."
         ),
+        FormatCapability(
+            id = "lzma", displayName = "LZMA-alone", family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("lzma"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Single-stream legacy .lzma decompression uses XZ for Java 1.12 with a 128 MiB decoder memory limit, buffered input, bounded input/output, expansion-ratio checks, cancellation, rollback, and CI tests. This is distinct from the .xz container format; physical-device validation is pending."
+        ),
         detected("zstandard", "Zstandard", FormatFamily.GENERAL_ARCHIVE, listOf("zst", "zstd"), "Detection only; no Zstandard decoder is registered."),
         detected("cab", "Microsoft Cabinet", FormatFamily.GENERAL_ARCHIVE, listOf("cab"), "Signature detection only; CAB inspection and extraction are not implemented."),
         detected("iso9660", "ISO 9660", FormatFamily.GENERAL_ARCHIVE, listOf("iso"), "Descriptor signature detection only; filesystem parsing and extraction are not implemented."),

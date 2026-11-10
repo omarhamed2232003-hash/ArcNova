@@ -416,6 +416,7 @@ class MainActivity : ComponentActivity() {
             name.endsWith(".bzip2", ignoreCase = true) -> name.dropLast(6)
             name.endsWith(".bz2", ignoreCase = true) -> name.dropLast(4)
             name.endsWith(".xz", ignoreCase = true) -> name.dropLast(3)
+            name.endsWith(".lzma", ignoreCase = true) -> name.dropLast(5)
             else -> name
         }
         return withoutSuffix.ifBlank { "decompressed.bin" }
