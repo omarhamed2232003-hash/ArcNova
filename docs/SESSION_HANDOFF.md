@@ -294,3 +294,10 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 
 ### Next task
 - Verify the latest branch head and CI after these commits. If green, continue Phase 1 with targeted ZIP unsupported-feature/encryption behavior tests and broader adversarial archive coverage. Continue to research candidates against the owner's independent-identity rule; do not integrate a source project that requires incompatible product naming/branding.
+
+### Unsupported ZIP compression method preflight regression (2026-11-10)
+- Research checked the Commons Compress 1.28.0 ZIP guide, `ZipFile.canReadEntryData(ZipArchiveEntry)` Javadoc, `ZipMethod` Javadoc, and unsupported-feature exception docs.
+- Official references: https://commons.apache.org/proper/commons-compress/zip ; https://commons.apache.org/proper/commons-compress/apidocs/org/apache/commons/compress/archivers/zip/ZipFile.html ; https://commons.apache.org/proper/commons-compress/apidocs/org/apache/commons/compress/archivers/zip/ZipMethod.html ; https://commons.apache.org/proper/commons-compress/changes.html . The documented API says `canReadEntryData` may return false for encryption or compression methods not implemented by the reader. Commons Compress 1.28.0 documents ZIP Zstandard support (method 93 and deprecated method 20), so do not incorrectly label every non-DEFLATE method unsupported.
+- Added a backend regression fixture that changes both the local and central-directory method fields to an unknown method code (22222), then asserts `CentralDirectoryZipUnsupportedFeatureException` is thrown during preflight and the spool file is removed.
+- Test commit: `c61b586458d0f088ffe147475b19e517369d3bab`. Matching CI is pending; do not report this new test as passing until the exact head has a successful unit-test run.
+- No dependency change, no APK, no device test, no main change, no merge.
