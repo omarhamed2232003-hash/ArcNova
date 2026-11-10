@@ -4,7 +4,7 @@ This file describes the implementation at the current repository revision. CI-te
 
 | Capability | Status | Notes |
 |---|---|---|
-| Android document picker | Implemented, CI-tested | Uses AndroidX Activity Result `OpenDocument` and `OpenDocumentTree`. Provider metadata/readability checks run on the worker thread. Real provider lifecycle, persisted grants, and device behavior remain unverified. |
+| Android document picker | Implemented, CI-tested | Uses AndroidX Activity Result `OpenDocument` and `OpenDocumentTree`. Provider metadata/readability checks run on the worker thread. Unsupported files remain visible but are not retained as actionable ZIP selections. Real provider lifecycle, persisted grants, and device behavior remain unverified. |
 | ZIP inspection | Implemented, CI-tested | Uses the Central Directory backend and bounded private seekable spool. Performs path preflight before returning a report; unsafe paths, duplicate normalized paths, malformed structures, integrity failures, limits, and unsupported features have distinct error outcomes. |
 | ZIP extraction | Implemented, CI-tested | The app uses the Central Directory path. Enforces archive-input, entry-count, per-file, total-output, path, and expansion-ratio limits; rejects unsupported/encrypted entries before writing; validates streamed size and CRC32; supports cancellation and transactional rollback. |
 | ZIP filesystem rollback | Implemented, CI-tested | Removes files/directories created by a failed extraction in reverse order and preserves pre-existing destination content. Cleanup failures are attached to the primary failure. |
@@ -33,4 +33,4 @@ This file describes the implementation at the current repository revision. CI-te
 
 ## Current validation boundary
 
-The latest verified GitHub Actions run on commit `3fe77df5d50bed9890abbeb3331928229aaab2a7` completed the `test` job successfully by running `gradle testDebugUnitTest`. The `preview-apk` job was skipped. This is CI unit-test evidence only. Physical-device testing, real SAF provider behavior, performance/thermal measurements, and release qualification remain pending.
+The latest verified GitHub Actions run is [Run #42885080686](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42885080686) on commit `59301031f8ede9f2174db6b4a2815dbdf09e7953`. The `test` job and `Run unit tests` step completed successfully by running `gradle testDebugUnitTest`; the `preview-apk` job was skipped. This is CI unit-test evidence only. Physical-device testing, real SAF provider behavior, performance/thermal measurements, and release qualification remain pending.
