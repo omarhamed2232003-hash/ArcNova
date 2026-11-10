@@ -326,3 +326,14 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 
 ### Next task
 - Verify CI for the final registry-alignment head. Then continue Phase 1 by strengthening the universal file-analysis foundation (safe metadata inspection/reporting and SHA-256/comparison edge cases) while reviewing the Phase 1 exit gate. Do not start Phase 2 until the documented Phase 1 gate is met.
+
+
+## Continuation — 2026-11-10 (bounded file-analysis header allocation)
+
+- Verified the previous file-analysis stream lifecycle/read-failure tests on commit `7c2c39f697117abc29cc79773c07dd39afec686d`: push Run #310 and PR Run #311 both completed successfully; unit-test job passed and `preview-apk` was skipped.
+- Source review found a resource-bound gap: `FileAnalysisAnalyzer.analyze` and `FileSignatureDetector.detect(InputStream)` accepted any positive `maxHeaderBytes`, then allocated a byte array of that caller-supplied size. This meant the nominally bounded detector could be asked to allocate an extremely large buffer.
+- Both entry points now enforce a hard maximum of `FileSignatureDetector.DEFAULT_MAX_HEADER_BYTES` (64 KiB) before allocation. Added regression tests asserting that a request for 64 KiB + 1 is rejected in both APIs.
+- Code/test commits: `da49ee135d18e58f0300df6a450d996dda0c2bce`, `77cff777974720fc50a2642581d4d55991687b81`, `647b6b464dc1bf0e884c636f514be6c2eef179d7`, `88830a01af9ab7d2a92c5a3ed54fdf64e5d2cbd9`. Status documentation commit follows.
+- Matching CI runs for intermediate heads #312–#315 were still running when this handoff was prepared; final code head was queued as Run #316. Verify the final docs-inclusive head and its PR/push unit-test results before marking this bound CI-tested.
+- Current branch remains `feature/phase1-zip-transactional-rollback`; PR #1 remains open/Draft/unmerged; `main` remains `ff50413b044cc788f7d1604728a365a76119889f`. No APK, no device test, no merge.
+- Next task after CI: continue the Phase 1 universal file-analysis foundation with metadata/report edge cases and comparison behavior, then reconcile the Phase 1 exit gate. Do not begin Phase 2 or final UI early.
