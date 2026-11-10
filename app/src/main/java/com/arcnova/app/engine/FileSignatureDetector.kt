@@ -93,19 +93,19 @@ object FileSignatureDetector {
             starts(0x58, 0x50, 0x33, 0x0d, 0x0a, 0x20, 0x0a, 0x1a, 0x8b, 0x67, 0x01) ->
                 match("xp3", "xp3", FileCategory.ARCHIVE, "KiriKiri XP3 archive")
             ascii(0, "UnityWebData1.0") ->
-                match("unity-web-data", null, FileCategory.ARCHIVE, "Unity Web data container")
+                match("unity-asset-bundle", null, FileCategory.ARCHIVE, "Unity Web data container")
             (ascii(0, "UnityFS") && bytes.getOrNull(7) == 0.toByte()) ->
-                match("unityfs", "bundle", FileCategory.ARCHIVE, "UnityFS asset bundle")
+                match("unity-asset-bundle", "bundle", FileCategory.ARCHIVE, "UnityFS asset bundle")
             (ascii(0, "UnityWeb") && bytes.getOrNull(8) == 0.toByte()) ->
-                match("unityweb", "unity3d", FileCategory.ARCHIVE, "Legacy UnityWeb asset bundle")
+                match("unity-asset-bundle", "unity3d", FileCategory.ARCHIVE, "Legacy UnityWeb asset bundle")
             (ascii(0, "UnityRaw") && bytes.getOrNull(8) == 0.toByte()) ->
-                match("unityraw", "unity3d", FileCategory.ARCHIVE, "Legacy UnityRaw asset bundle")
+                match("unity-asset-bundle", "unity3d", FileCategory.ARCHIVE, "Legacy UnityRaw asset bundle")
             (ascii(0, "UnityArchive") && bytes.getOrNull(12) == 0.toByte()) ->
-                match("unityarchive", "unity3d", FileCategory.ARCHIVE, "Legacy UnityArchive container")
+                match("unity-asset-bundle", "unity3d", FileCategory.ARCHIVE, "Legacy UnityArchive container")
             ascii(0, "RPA-3.0 ") || ascii(0, "RPA-2.0 ") ->
-                match("renpy-rpa", "rpa", FileCategory.ARCHIVE, "Ren'Py RPA archive")
+                match("rpa", "rpa", FileCategory.ARCHIVE, "Ren'Py RPA archive")
             ascii(257, "ustar") ->
-                match("tar-ustar", "tar", FileCategory.ARCHIVE, "POSIX USTAR archive")
+                match("tar", "tar", FileCategory.ARCHIVE, "POSIX USTAR archive")
             (bytes.size >= 0x8007 &&
                 ascii(0x8001, "CD001") &&
                 (bytes[0x8000].toInt() and 0xff) in setOf(1, 2, 3, 255) &&
