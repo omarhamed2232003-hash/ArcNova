@@ -47,9 +47,9 @@ class FormatCapabilityRegistryTest {
     }
 
     @Test fun signatureDetectedExtensionsResolveToTheSameCapabilityIds() {
-        assertEquals("unity-asset-bundle", FileSignatureDetector.detect("UnityFS\\u0000".toByteArray())!!.id)
+        assertEquals("unity-asset-bundle", FileSignatureDetector.detect("UnityFS\u0000".toByteArray())!!.id)
         assertEquals("unity-asset-bundle", FileSignatureDetector.detect("UnityWebData1.0".toByteArray())!!.id)
-        assertEquals("rpa", FileSignatureDetector.detect("RPA-3.0 0000000000000000 00000000\\n".toByteArray())!!.id)
+        assertEquals("rpa", FileSignatureDetector.detect("RPA-3.0 0000000000000000 00000000\n".toByteArray())!!.id)
         val tar = ByteArray(263)
         "ustar".toByteArray().copyInto(tar, 257)
         assertEquals("tar", FileSignatureDetector.detect(tar)!!.id)
