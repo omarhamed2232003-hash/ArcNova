@@ -301,3 +301,13 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Added a backend regression fixture that changes both the local and central-directory method fields to an unknown method code (22222), then asserts `CentralDirectoryZipUnsupportedFeatureException` is thrown during preflight and the spool file is removed.
 - Test commit: `c61b586458d0f088ffe147475b19e517369d3bab`. Matching CI is pending; do not report this new test as passing until the exact head has a successful unit-test run.
 - No dependency change, no APK, no device test, no main change, no merge.
+
+
+## Verified continuation — 2026-11-10 (ZIP feature handling)
+
+- Live GitHub verification: development branch `feature/phase1-zip-transactional-rollback` currently advanced through commit `2c5b2c26a04cafa97e8af4f42fe736a9b65ffa2d`; PR #1 remains open and unmerged; `main` remains `ff50413b044cc788f7d1604728a365a76119889f`.
+- GitHub Actions Runs #270/#271 passed for code commit `c61b586458d0f088ffe147475b19e517369d3bab`; Runs #272/#273 passed for current docs-inclusive head `2c5b2c26a04cafa97e8af4f42fe736a9b65ffa2d`. The `test` job succeeded; `preview-apk` was skipped. This validates the unknown compression-method preflight regression test. No APK was built.
+- The Commons Compress backend rejects encrypted and unknown/unsupported compression entries during preflight using `ZipFile.canReadEntryData(entry)`; supported ZIP compression methods must not be mistakenly rejected by a simplistic DEFLATE-only allowlist.
+- Follow-up error-taxonomy improvement: `ZipInspectionEngine.inspectCentralDirectory` now maps `CentralDirectoryZipUnsupportedFeatureException` to the distinct public `ZipInspectionUnsupportedFeatureException`, instead of reporting an encrypted/unsupported entry as malformed ZIP format. A regression test mutates both local and central ZIP encryption flags and verifies the public error type and spool cleanup.
+- The above taxonomy code/test commits are newer than Run #273 and require fresh CI validation; do not describe them as passed until a run for the latest branch head completes.
+- Still pending: map unsupported-feature errors to a dedicated public extraction exception if useful; validate Android SAF picker and extraction on the actual OnePlus Pad 2; finish Phase 1 exit criteria before Phase 2. No APK until all eight phases are complete and owner explicitly authorizes final packaging. No merge or changes to `main`.
