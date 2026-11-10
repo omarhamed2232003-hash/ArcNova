@@ -265,3 +265,13 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Runs #250–#253 compiled production and test Kotlin successfully and executed 145 tests, but the new CRC test failed at its assertion expecting a CRC-specific exception. The original fixture used DEFLATED data; flipping a compressed byte can cause decompression failure before the backend reaches its explicit CRC comparison.
 - Reworked the fixture to create a ZIP STORED entry with known size and CRC, then flip one payload byte while leaving the central-directory CRC unchanged. This isolates the intended CRC mismatch path. Fix commit: `e87738029b06da2fc33f6897b79e956a084abdf0`.
 - This is a test-fixture correction, not a change to production ZIP validation. Await and inspect matching CI before marking this test passed.
+
+
+### ZIP unsupported-feature preflight — 2026-11-10
+
+- Rechecked Apache Commons Compress 1.28.0 official ZIP guide and ZipFile API. The library explicitly documents that ZipFile.canReadEntryData(entry) returns false for encrypted entries or compression methods not implemented by the library; attempting to open such entries throws UnsupportedZipFeatureException. Sources: https://commons.apache.org/proper/commons-compress/zip ; https://commons.apache.org/proper/commons-compress/apidocs/org/apache/commons/compress/archivers/zip/ZipFile.html ; https://commons.apache.org/proper/commons-compress/apidocs/org/apache/commons/compress/archivers/zip/UnsupportedZipFeatureException.html
+- Added a Central Directory preflight guard using canReadEntryData before returning the archive to extraction/inspection callers. Unsupported/encrypted entries now fail before any destination payload is written and are reported via CentralDirectoryZipUnsupportedFeatureException.
+- Added a regression fixture that sets the traditional encryption flag in both local and Central Directory headers, then asserts the backend rejects the archive during preflight and cleans the temporary spool.
+- Commits: backend d4e862a9cad54e6ce0cd325f678fa58f797caa05; test b3ed11674b3514d97d4ac8cc1064647f55ad140a.
+- This does not add password support. Commons Compress still cannot decrypt encrypted ZIP entries; the behavior is explicit early rejection. A separate Zip4j evaluation is required before any password-protected ZIP feature is claimed.
+- Matching CI is pending. No APK built, no physical-device validation, no main-branch change, no merge.
