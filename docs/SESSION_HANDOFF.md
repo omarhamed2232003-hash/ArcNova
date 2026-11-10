@@ -402,3 +402,14 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Phase 1 roadmap exit gate remains: all unit tests pass; inspection/extraction enforce resource limits and cleanup/rollback; failed operations do not silently appear complete; and capability labels match actual code. Latest CI provides the unit-test gate evidence. Real-device/SAF-provider validation is explicitly a later device-qualification requirement, not evidence to invent or claim now.
 - Next engineering action: perform the final Phase 1 source-to-registry and failure-path review, fix any concrete discrepancy found, run unit-test CI on the resulting head, then reconcile the roadmap/handoff gate. Do not start Phase 2 until the documented Phase 1 gate is honestly satisfied.
 - No APK build. Preserve the one-preview-only rule and all eight phases, including mandatory Phase 6.
+
+
+## Verified continuation — 2026-11-10 (unsupported-file action gating and Phase 1 exit review)
+
+- Fixed a picker state inconsistency in `MainActivity`: unsupported or mismatched files remain visible in the selection summary but are no longer retained as an actionable ZIP source. This prevents later destination selection from enabling ZIP actions for an unsupported file.
+- Commit: `59301031f8ede9f2174db6b4a2815dbdf09e7953` — `Prevent unsupported files from enabling ZIP actions`.
+- GitHub Actions [Run #42885080686](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42885080686) completed successfully on that commit. The `test` job and `gradle testDebugUnitTest` step passed; `preview-apk` was skipped. No APK was built.
+- Reviewed the Phase 1 exit gate in `docs/ROADMAP.md`: unit tests pass; ZIP inspection/extraction enforce explicit resource limits and cleanup/rollback; output is staged and committed transactionally, with incomplete SAF rollback explicitly reported; and the operation-level capability registry does not advertise planned detection/inspection/extraction work as implemented. The UI gating fix closes the final picker-state discrepancy found in this review.
+- Phase 1 exit gate is satisfied on the current development branch. Physical-device and real SAF-provider checks remain Phase 7 device qualification, as sequenced in the roadmap; they are not being represented as completed.
+- `docs/ENGINE_STATUS.md` was refreshed to reference the latest verified CI run and current picker behavior.
+- No APK was built, no release was created, and no Phase 2 implementation was started. Preserve all eight phases, including mandatory Phase 6, and the one-preview-only build restriction.
