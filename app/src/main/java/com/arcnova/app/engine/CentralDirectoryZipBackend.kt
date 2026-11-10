@@ -34,7 +34,7 @@ object CentralDirectoryZipBackend {
             val zip = ZipFile.builder().setFile(spool.file).get()
             try {
                 val entries = Collections.list(zip.entries)
-                preflight(entries, policy, cancellationRequested)
+                preflight(zip, entries, policy, cancellationRequested)
                 return CentralDirectoryZipArchive(
                     spool = spool,
                     zipFile = zip,
@@ -61,6 +61,7 @@ object CentralDirectoryZipBackend {
     }
 
     private fun preflight(
+        zipFile: ZipFile,
         entries: List<ZipArchiveEntry>,
         policy: CentralDirectoryZipPolicy,
         cancellationRequested: () -> Boolean
