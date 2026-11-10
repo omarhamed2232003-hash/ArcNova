@@ -99,6 +99,11 @@ class ArchiveRiskAssessmentTest {
         assertNotNull(finding(result, "hidden-entry"))
     }
 
+    @Test fun detectsDeceptiveDoubleExtensionsInWindowsStylePaths() {
+        val result = ArchiveRiskAssessment.assess(report(entry("folder\\\\invoice.pdf.exe")))
+        assertNotNull(finding(result, "double-extension"))
+    }
+
     @Test fun rejectsInvalidThresholds() {
         org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
             ArchiveRiskThresholds(maxEntriesWarning = -1)
