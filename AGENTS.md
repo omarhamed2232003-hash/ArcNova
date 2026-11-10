@@ -32,11 +32,17 @@ FitGirl repacks and Steam PC games are important compatibility targets, but they
 
 - The owner primarily works from an Android tablet (OnePlus Pad 2, Snapdragon 8 Gen 3, Android 16, ARM64) and currently has no PC/laptop available. Design workflows and testing instructions with this constraint in mind.
 - The owner wants the AI collaborator to do the substantial repository inspection, coding, tests, and GitHub work directly whenever connected tools permit. Avoid assigning routine coding or complicated command sequences to the owner.
-- Explain important changes in clear, concise Egyptian Arabic when communicating with the owner. Teach through the real project work without turning every task into a lesson.
+- Communicate with the owner in the language they use in the conversation; this communication preference does not change the project's English-only requirement. Teach through the real project work without turning every task into a lesson.
 - Preserve the existing project, workflow, milestones, and backups. Do not impose a new workflow, extra audit/reporting phase, or reorder milestones without a concrete reason.
 - Do not ask for approval for ordinary, reversible engineering decisions. Ask only when a genuinely owner-controlled decision is required (for example, choosing a project-wide open-source license, spending money, accepting a proprietary license, or destructive/unrecoverable action).
 - Do not claim to work in the background after the chat/session ends. Make progress during the active session, report exactly what was changed, and leave a useful handoff for the next session.
 - Do not make the owner download large files over mobile data without asking first.
+
+
+
+## English-only project language policy
+
+All project-owned content and development artifacts must be written in English only. This applies to source code, identifiers, comments, tests, test names and descriptions, documentation, README and handoff files, AI-agent instructions, application UI text, user-facing messages, logs, commit messages, branch names, pull request titles and descriptions, issue content, and release materials. Do not add Arabic or other non-English text to project files or GitHub project artifacts. Preserve legally required third-party notices and upstream text where alteration would be inappropriate; do not translate or remove mandatory legal notices. The language used in a private conversation with the owner is separate from the language of the repository and product: agents may communicate with the owner in the language the owner chooses, while all ArcNova project artifacts remain English-only.
 
 ## 4. Current implementation truth
 
