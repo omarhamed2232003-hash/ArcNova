@@ -275,3 +275,22 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - Commits: backend d4e862a9cad54e6ce0cd325f678fa58f797caa05; test b3ed11674b3514d97d4ac8cc1064647f55ad140a.
 - This does not add password support. Commons Compress still cannot decrypt encrypted ZIP entries; the behavior is explicit early rejection. A separate Zip4j evaluation is required before any password-protected ZIP feature is claimed.
 - Matching CI is pending. No APK built, no physical-device validation, no main-branch change, no merge.
+
+## Continuation — source reuse policy and ZIP preflight compile fix (2026-11-10)
+
+### Owner-confirmed ArcNova identity rule
+- The owner clarified that ArcNova must not take/adapt code from a project if doing so would require ArcNova to use or display that project's name/brand as part of the integration. If a component requires that kind of naming/branding, do not use its code; study public technical concepts and build an independent implementation or select a different component.
+- Source reuse is acceptable only when the exact license/version permits the intended modification, integration, and distribution without third-party product branding in ArcNova's user-facing identity. Public availability is not a license waiver.
+- Never remove legally required notices or misrepresent upstream authorship. Keep mandatory legal notices in appropriate documentation when allowed; if a license requires a visible credit, naming, reciprocal source release, or other incompatible condition, reject that code and choose/reimplement another solution.
+- Keep ArcNova's brand, UI, orchestration, adapters, and workflows independent. Distinguish ArcNova-authored work from upstream components and preserve provenance in `THIRD_PARTY_NOTICES.md`. This is now recorded in `AGENTS.md` section 17.
+
+### CI failure diagnosis and correction
+- Live check of PR #1 confirmed it remains open and Draft, not merged. The latest head before this continuation was `0a2a1e609df994bba12882caf1e8cec807a78234`; `main` remains unchanged.
+- PR workflow Run #263 (run ID `42733839062`) failed during Kotlin compilation before unit tests ran. Exact diagnostic: `CentralDirectoryZipBackend.kt:75:18 Unresolved reference 'zipFile'`.
+- Root cause: the unsupported-feature preflight referenced the archive reader from an object-level helper where that reader was not in scope. Fixed by passing the opened `ZipFile` explicitly into `preflight(...)`, retaining the early `canReadEntryData(entry)` guard before any payload write.
+- Code fix commit: `3abec59c3f640b6097d54161f2b2baece7e80ac1`. This is a compile-scope correction; it does not add encrypted ZIP/password support.
+- Added the owner-confirmed identity/source-reuse policy to this handoff and `AGENTS.md` section 17. Documentation commits follow the code fix. Matching CI for the corrected head is pending and must be checked before reporting success.
+- No APK built, no physical-device test, no changes to `main`, and no PR merge.
+
+### Next task
+- Verify the latest branch head and CI after these commits. If green, continue Phase 1 with targeted ZIP unsupported-feature/encryption behavior tests and broader adversarial archive coverage. Continue to research candidates against the owner's independent-identity rule; do not integrate a source project that requires incompatible product naming/branding.
