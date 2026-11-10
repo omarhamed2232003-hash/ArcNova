@@ -106,6 +106,22 @@ class ArchiveFormatDetectorTest {
         assertEquals(null, ArchiveFormatDetector.detect("backup.rar").supportedExtractionFormat(null))
     }
 
+    @Test fun resolvesBzip2AndXzExtractionWithoutMisclassifyingLzmaAlone() {
+        val bzip2 = ArchiveFormatDetector.detect("payload.bz2")
+        assertEquals(ArchiveFormat.BZIP2, bzip2.supportedExtractionFormat(null))
+        assertEquals(ArchiveFormat.BZIP2, bzip2.supportedExtractionFormat(ArchiveFormat.BZIP2))
+        assertEquals(null, bzip2.supportedExtractionFormat(ArchiveFormat.XZ))
+
+        val xz = ArchiveFormatDetector.detect("payload.tar.xz")
+        assertEquals(ArchiveFormat.XZ, xz.supportedExtractionFormat(null))
+        assertEquals(ArchiveFormat.XZ, xz.supportedExtractionFormat(ArchiveFormat.XZ))
+        assertEquals(null, xz.supportedExtractionFormat(ArchiveFormat.BZIP2))
+
+        val lzma = ArchiveFormatDetector.detect("payload.lzma")
+        assertEquals(ArchiveFormat.UNKNOWN, lzma.format)
+        assertEquals(null, lzma.supportedExtractionFormat(null))
+    }
+
     @Test fun preservesRarMultipartFilenameDetection() {
         val numbered = ArchiveFormatDetector.detect("archive.part1.rar")
         assertEquals(ArchiveFormat.RAR, numbered.format)

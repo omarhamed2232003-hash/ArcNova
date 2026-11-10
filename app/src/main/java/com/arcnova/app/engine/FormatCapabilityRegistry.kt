@@ -128,8 +128,28 @@ object FormatCapabilityRegistry {
             ),
             notes = "Single-stream GZIP decompression is implemented with concatenated-member support, CRC validation, input/output limits, expansion-ratio checks, cancellation, rollback, and CI tests. Physical-device validation is pending."
         ),
-        detected("bzip2", "BZIP2", FormatFamily.GENERAL_ARCHIVE, listOf("bz2", "bzip2"), "Detection only; no BZIP2 decoder is registered."),
-        detected("xz", "XZ", FormatFamily.GENERAL_ARCHIVE, listOf("xz", "lzma"), "Detection only; no XZ decoder is registered."),
+        FormatCapability(
+            id = "bzip2", displayName = "BZIP2", family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("bz2", "bzip2"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Single-stream BZIP2 decompression uses Commons Compress 1.28.0 with concatenated-stream support, bounded input/output, expansion-ratio checks, cancellation, rollback, and CI tests. Physical-device validation is pending."
+        ),
+        FormatCapability(
+            id = "xz", displayName = "XZ", family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("xz"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Single-stream XZ decompression uses Commons Compress 1.28.0 and XZ for Java 1.12 with a 128 MiB decoder memory limit, concatenated-stream support, bounded input/output, expansion-ratio checks, cancellation, rollback, and CI tests. Physical-device validation is pending. LZMA-alone (.lzma) remains unsupported."
+        ),
         detected("zstandard", "Zstandard", FormatFamily.GENERAL_ARCHIVE, listOf("zst", "zstd"), "Detection only; no Zstandard decoder is registered."),
         detected("cab", "Microsoft Cabinet", FormatFamily.GENERAL_ARCHIVE, listOf("cab"), "Signature detection only; CAB inspection and extraction are not implemented."),
         detected("iso9660", "ISO 9660", FormatFamily.GENERAL_ARCHIVE, listOf("iso"), "Descriptor signature detection only; filesystem parsing and extraction are not implemented."),

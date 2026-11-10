@@ -25,6 +25,7 @@ import com.arcnova.app.engine.ZipInspectionEngine
 import com.arcnova.app.engine.ZipExtractionProgress
 import com.arcnova.app.engine.ArchiveExtractionProgress
 import com.arcnova.app.engine.TarGzipExtractionEngine
+import com.arcnova.app.engine.Bzip2XzExtractionEngine
 import com.arcnova.app.engine.SevenZExtractionEngine
 import com.arcnova.app.engine.ArchiveExtractionCancelledException
 import com.arcnova.app.engine.ZipExtractionCancelledException
@@ -108,7 +109,7 @@ class MainActivity : ComponentActivity() {
         }
         root.addView(statusLabel)
         root.addView(TextView(this).apply {
-            text = "ZIP and TAR extraction plus GZIP decompression are available in this engineering build. ZIP inspection remains ZIP-only."
+            text = "ZIP, 7z, TAR, GZIP, BZIP2, and XZ extraction are available in this engineering build. ZIP inspection remains ZIP-only."
             textSize = 12f; setPadding(0, 24, 0, 0)
         })
         setContentView(root)
@@ -338,6 +339,19 @@ class MainActivity : ComponentActivity() {
                             )
                             gzip.filesExtracted to gzip.bytesWritten
                         }
+                        ArchiveFormat.BZIP2, ArchiveFormat.XZ -> {
+                            val decoded = Bzip2XzExtractionEngine.decompress(
+                                format = format,
+                                input = stream,
+                                destination = staging,
+                                outputFileName = compressedOutputName(source.displayName),
+                                maxInputBytes = MAX_ARCHIVE_INPUT_BYTES,
+                                policy = ExtractionPolicy(),
+                                cancellationRequested = { cancelRequested.get() },
+                                onProgress = { progress -> postProgress(progress) }
+                            )
+                            decoded.filesExtracted to decoded.bytesWritten
+                        }
                         else -> throw IllegalStateException("No extraction engine is registered for ${format.label}")
                     }
                 }
@@ -391,6 +405,17 @@ class MainActivity : ComponentActivity() {
         val withoutSuffix = when {
             name.endsWith(".gzip", ignoreCase = true) -> name.dropLast(5)
             name.endsWith(".gz", ignoreCase = true) -> name.dropLast(3)
+            else -> name
+        }
+        return withoutSuffix.ifBlank { "decompressed.bin" }
+    }
+
+    private fun compressedOutputName(displayName: String?): String {
+        val name = displayName?.substringAfterLast('/')?.substringAfterLast('\\\\')?.trim().orEmpty()
+        val withoutSuffix = when {
+            name.endsWith(".bzip2", ignoreCase = true) -> name.dropLast(6)
+            name.endsWith(".bz2", ignoreCase = true) -> name.dropLast(4)
+            name.endsWith(".xz", ignoreCase = true) -> name.dropLast(3)
             else -> name
         }
         return withoutSuffix.ifBlank { "decompressed.bin" }

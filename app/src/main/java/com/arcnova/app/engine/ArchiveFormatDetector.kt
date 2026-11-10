@@ -29,7 +29,8 @@ data class ArchiveDetection(
             signatureFormat?.takeIf { it != ArchiveFormat.UNKNOWN } ?: ArchiveFormat.UNKNOWN
         }
         return resolved.takeIf {
-            it == ArchiveFormat.ZIP || it == ArchiveFormat.SEVEN_ZIP || it == ArchiveFormat.TAR || it == ArchiveFormat.GZIP
+            it == ArchiveFormat.ZIP || it == ArchiveFormat.SEVEN_ZIP || it == ArchiveFormat.TAR ||
+                it == ArchiveFormat.GZIP || it == ArchiveFormat.BZIP2 || it == ArchiveFormat.XZ
         }
     }
 
@@ -68,7 +69,7 @@ object ArchiveFormatDetector {
             "tar" -> ArchiveFormat.TAR
             "gz", "gzip" -> ArchiveFormat.GZIP
             "bz2", "bzip2" -> ArchiveFormat.BZIP2
-            "xz", "lzma" -> ArchiveFormat.XZ
+            "xz" -> ArchiveFormat.XZ
             "zst", "zstd" -> ArchiveFormat.ZSTANDARD
             "arc" -> ArchiveFormat.FREEARC
             "rk" -> ArchiveFormat.WINRK
