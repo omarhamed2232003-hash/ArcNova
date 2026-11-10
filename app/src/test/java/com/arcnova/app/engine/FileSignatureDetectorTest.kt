@@ -94,4 +94,13 @@ class FileSignatureDetectorTest {
             return value
         }
     }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsHeaderLimitAboveBoundedMaximum() {
+        FileSignatureDetector.detect(
+            ByteArrayInputStream(byteArrayOf(1)),
+            FileSignatureDetector.DEFAULT_MAX_HEADER_BYTES + 1
+        )
+    }
+
 }
