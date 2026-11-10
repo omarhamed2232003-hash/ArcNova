@@ -79,8 +79,7 @@ object SevenZExtractionEngine {
                     .get()
 
                 archive.use { sevenZ ->
-                    val metadata = sevenZ.entries.toList()
-                    val planned = preflight(metadata, policy)
+                    val planned = preflight(sevenZ.entries, policy)
                     checkCancelled(cancellationRequested, totalBytes)
 
                     if (!destination.exists() && !destination.mkdirs()) {
@@ -257,18 +256,17 @@ object SevenZExtractionEngine {
     )
 
     private fun preflight(
-        entries: List<org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry>,
+        entries: Iterable<org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry>,
         policy: ExtractionPolicy
     ): List<PlannedEntry> {
-        if (entries.size > policy.maxEntries) {
-            throw ArchiveExtractionLimitException("7z entry count exceeds ${policy.maxEntries}", 0L)
-        }
-
         val seenPaths = java.util.TreeMap<String, Boolean>()
         var declaredTotal = 0L
         val planned = ArrayList<PlannedEntry>(entries.size)
 
         for (entry in entries) {
+            if (planned.size >= policy.maxEntries) {
+                throw ArchiveExtractionLimitException("7z entry count exceeds ${policy.maxEntries}", 0L)
+            }
             val name = entry.name ?: throw ArchiveExtractionUnsupportedFeatureException(
                 "7z entries without names are not supported",
                 0L
