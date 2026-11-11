@@ -2,8 +2,8 @@ package com.arcnova.app.engine
 
 /** Best-effort filename-based format hint; archive bytes are not inspected. */
 enum class ArchiveFormat(val label: String) {
-    ZIP("ZIP"), SEVEN_ZIP("7-Zip"), RAR("RAR"), TAR("TAR"),
-    GZIP("GZIP"), BZIP2("BZIP2"), XZ("XZ"), ZSTANDARD("Zstandard"),
+    ZIP("ZIP"), SEVEN_ZIP("7-Zip"), RAR("RAR"), AR("AR / Debian package"), CPIO("CPIO"), TAR("TAR"),
+    GZIP("GZIP"), BZIP2("BZIP2"), XZ("XZ"), LZMA("LZMA-alone"), ZSTANDARD("Zstandard"),
     FREEARC("FreeArc"), WINRK("WinRK"), KGB("KGB"), UHARC("UHARC"),
     ZPAQ("ZPAQ"), DGCA("DGCA"), STUFFIT("StuffIt"),
     UNREAL_PAK("Unreal PAK"), UNREAL_IOSTORE("Unreal IoStore"),
@@ -19,16 +19,25 @@ data class ArchiveDetection(
 ) {
     enum class Confidence { EXTENSION_HINT, UNKNOWN }
 
-    fun supportsZipExtraction(signatureFormat: ArchiveFormat?): Boolean {
-        if (isMultipart) return false
-        return when {
-            signatureFormat == ArchiveFormat.ZIP ->
-                format == ArchiveFormat.ZIP || format == ArchiveFormat.UNKNOWN
-            format == ArchiveFormat.ZIP ->
-                signatureFormat == null || signatureFormat == ArchiveFormat.UNKNOWN
-            else -> false
+    fun supportedExtractionFormat(signatureFormat: ArchiveFormat?): ArchiveFormat? {
+        if (isMultipart) return null
+        val hasSignature = signatureFormat != null && signatureFormat != ArchiveFormat.UNKNOWN
+        if (hasSignature && format != ArchiveFormat.UNKNOWN && format != signatureFormat) return null
+        val resolved = if (format != ArchiveFormat.UNKNOWN) {
+            format
+        } else {
+            signatureFormat?.takeIf { it != ArchiveFormat.UNKNOWN } ?: ArchiveFormat.UNKNOWN
+        }
+        return resolved.takeIf {
+            it == ArchiveFormat.ZIP || it == ArchiveFormat.SEVEN_ZIP || it == ArchiveFormat.AR ||
+                it == ArchiveFormat.CPIO || it == ArchiveFormat.TAR ||
+                it == ArchiveFormat.GZIP || it == ArchiveFormat.BZIP2 || it == ArchiveFormat.XZ || it == ArchiveFormat.LZMA ||
+                it == ArchiveFormat.ZSTANDARD || it == ArchiveFormat.RAR
         }
     }
+
+    fun supportsZipExtraction(signatureFormat: ArchiveFormat?): Boolean =
+        supportedExtractionFormat(signatureFormat) == ArchiveFormat.ZIP
 }
 
 object ArchiveFormatDetector {
@@ -59,10 +68,13 @@ object ArchiveFormatDetector {
             "zip" -> ArchiveFormat.ZIP
             "7z" -> ArchiveFormat.SEVEN_ZIP
             "rar" -> ArchiveFormat.RAR
+            "a", "ar", "deb" -> ArchiveFormat.AR
+            "cpio" -> ArchiveFormat.CPIO
             "tar" -> ArchiveFormat.TAR
             "gz", "gzip" -> ArchiveFormat.GZIP
             "bz2", "bzip2" -> ArchiveFormat.BZIP2
-            "xz", "lzma" -> ArchiveFormat.XZ
+            "xz" -> ArchiveFormat.XZ
+            "lzma" -> ArchiveFormat.LZMA
             "zst", "zstd" -> ArchiveFormat.ZSTANDARD
             "arc" -> ArchiveFormat.FREEARC
             "rk" -> ArchiveFormat.WINRK

@@ -21,11 +21,13 @@ Exit gate:
 - no partial output is silently presented as a completed operation;
 - code review confirms capability labels match actual implementations.
 
-**Exit-gate result:** Satisfied on development commit `59301031f8ede9f2174db6b4a2815dbdf09e7953`; GitHub Actions [Run #42885080686](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42885080686) passed `gradle testDebugUnitTest`. The preview APK job was skipped. Physical-device and real SAF-provider validation remain in Phase 7 and are not claimed as complete.
+**Exit-gate result:** Satisfied on `main` commit `700bb50e305a8bd478fd6a05e56ef0a23d38f3f6`; GitHub Actions [Run #42899934445](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42899934445) passed `gradle testDebugUnitTest`. Physical-device and real SAF-provider validation remain in Phase 7 and are not claimed as complete.
 
 ## Phase 2 — General archive engines
 
 Add formats in deliberate groups (for example TAR/GZIP, then 7z, then RAR where licensing permits). Each format needs real parsing/decoding, fixtures, integrity checks, limits, cancellation, tests and capability-registry updates. Filename detection alone never counts as format support.
+
+**Current implementation batch:** ZIP extraction/inspection, 7z extraction, single-volume RAR3/RAR5 extraction, TAR extraction, GZIP decompression, BZIP2 decompression, XZ decompression, LZMA-alone decompression, and Zstandard decompression are implemented with bounded processing, cancellation, path safety where applicable, integrity validation, and rollback. The engineering picker routes all nine supported formats to their engines; ZIP inspection remains ZIP-only. 7z uses Commons Compress 1.28.0 with XZ for Java 1.12 and a 256 MiB LZMA/LZMA2 decoder memory cap. LZMA-alone and XZ are distinct formats; their decoder memory is capped at 128 MiB. Zstandard uses zstd-jni 1.5.7-25 with a 128 MiB maximum decoder window; external dictionaries are not supported. RAR uses libarchive-android 1.1.7 behind ArcNova-owned bounded path handling, output writing, cancellation, and rollback. Single-volume only; encrypted entries and links are rejected. The current RAR unit tests validate ArcNova policy handling with an injected reader, not real native decoder fixtures. Latest RAR integration unit-test CI passed on commit `2ca96d05c41e599259be51f635f406e04811d77f` in push run [#42933411799](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42933411799) and pull-request run [#42933420177](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42933420177). The major-change push workflow completed and uploaded the internal preview artifact in Run #42933411799. The follow-up RAR regression-test commit passed Run #42934650572 and correctly skipped APK generation. No physical-device ABI, SAF-provider, or 16 KB page-size validation is claimed.
 
 ## Phase 3 — Specialist compression and game containers
 

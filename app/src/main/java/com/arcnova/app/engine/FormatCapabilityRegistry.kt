@@ -88,13 +88,128 @@ object FormatCapabilityRegistry {
             ),
             notes = "Bounded ZIP extraction and streaming inspection are implemented with path safety, limits, cancellation, and unit tests; physical-device validation is pending."
         ),
-        detected("7z", "7-Zip", FormatFamily.GENERAL_ARCHIVE, listOf("7z"), "Detection only; no 7z decoder is registered."),
-        detected("rar", "RAR", FormatFamily.GENERAL_ARCHIVE, listOf("rar", "r00"), "Detection only; no RAR decoder is registered."),
-        detected("tar", "TAR", FormatFamily.GENERAL_ARCHIVE, listOf("tar"), "Detection only; no TAR reader is registered."),
-        detected("gzip", "GZIP", FormatFamily.GENERAL_ARCHIVE, listOf("gz", "gzip"), "Detection only; no GZIP decoder is registered."),
-        detected("bzip2", "BZIP2", FormatFamily.GENERAL_ARCHIVE, listOf("bz2", "bzip2"), "Detection only; no BZIP2 decoder is registered."),
-        detected("xz", "XZ", FormatFamily.GENERAL_ARCHIVE, listOf("xz", "lzma"), "Detection only; no XZ decoder is registered."),
-        detected("zstandard", "Zstandard", FormatFamily.GENERAL_ARCHIVE, listOf("zst", "zstd"), "Detection only; no Zstandard decoder is registered."),
+        FormatCapability(
+            id = "7z",
+            displayName = "7-Zip",
+            family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("7z"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Bounded 7z extraction uses Commons Compress 1.28.0 with XZ for Java 1.12. Only implemented compression/filter methods are accepted; encrypted entries and multipart volumes are not supported. LZMA/LZMA2 decoder memory is capped at 256 MiB. Physical-device validation is pending."
+        ),
+        FormatCapability(
+            id = "rar",
+            displayName = "RAR",
+            family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("rar", "r00"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Single-volume RAR3 and RAR5 extraction uses the Android native archive backend behind ArcNova's bounded transactional writer. Encrypted entries, links, unsupported entry types, and detected multipart filenames are rejected. Upstream RAR limitations and physical-device validation remain."
+        ),
+        FormatCapability(
+            id = "ar",
+            displayName = "AR / Debian package",
+            family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("a", "ar", "deb"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Bounded AR extraction uses the existing Apache Commons Compress 1.28.0 dependency. GNU/BSD long-name handling is delegated to its reader; symbol-table members are skipped, and ordinary members must be regular files. A .deb is extracted only as its outer AR container; nested control/data archives are separate files, not installed packages. Physical-device validation is pending."
+        ),
+        FormatCapability(
+            id = "cpio",
+            displayName = "CPIO",
+            family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("cpio"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Bounded CPIO extraction uses Apache Commons Compress 1.28.0 and supports newc and newc-with-CRC only. Legacy old ASCII and old binary CPIO headers are deliberately rejected before the Commons Compress parser receives them, because their variable-length name metadata does not yet have the same pre-allocation guard. CRC is checked by the reader. Symbolic/hard links and special inode types are rejected. Physical-device validation is pending."
+        ),
+        FormatCapability(
+            id = "tar",
+            displayName = "TAR",
+            family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("tar"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Streaming TAR extraction is implemented with entry-type rejection, path safety, input/output limits, cancellation, rollback, and CI tests. Physical-device validation is pending."
+        ),
+        FormatCapability(
+            id = "gzip",
+            displayName = "GZIP",
+            family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("gz", "gzip"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Single-stream GZIP decompression is implemented with concatenated-member support, CRC validation, input/output limits, expansion-ratio checks, cancellation, rollback, and CI tests. Physical-device validation is pending."
+        ),
+        FormatCapability(
+            id = "bzip2", displayName = "BZIP2", family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("bz2", "bzip2"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Single-stream BZIP2 decompression uses Commons Compress 1.28.0 with concatenated-stream support, bounded input/output, expansion-ratio checks, cancellation, rollback, and CI tests. Physical-device validation is pending."
+        ),
+        FormatCapability(
+            id = "xz", displayName = "XZ", family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("xz"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Single-stream XZ decompression uses Commons Compress 1.28.0 and XZ for Java 1.12 with a 128 MiB decoder memory limit, concatenated-stream support, bounded input/output, expansion-ratio checks, cancellation, rollback, and CI tests. Physical-device validation is pending. LZMA-alone (.lzma) remains unsupported."
+        ),
+        FormatCapability(
+            id = "lzma", displayName = "LZMA-alone", family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("lzma"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Single-stream legacy .lzma decompression uses XZ for Java 1.12 with a 128 MiB decoder memory limit, buffered input, bounded input/output, expansion-ratio checks, cancellation, rollback, and CI tests. This is distinct from the .xz container format; physical-device validation is pending."
+        ),
+        FormatCapability(
+            id = "zstandard", displayName = "Zstandard", family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("zst", "zstd"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Bounded single-stream Zstandard decompression uses zstd-jni 1.5.7-25 Android AAR with a 128 MiB maximum decoder window, input/output and expansion-ratio limits, cancellation, rollback, and CI tests. External dictionaries are not supported. Physical-device ABI and 16 KB page-size validation is pending."
+        ),
         detected("cab", "Microsoft Cabinet", FormatFamily.GENERAL_ARCHIVE, listOf("cab"), "Signature detection only; CAB inspection and extraction are not implemented."),
         detected("iso9660", "ISO 9660", FormatFamily.GENERAL_ARCHIVE, listOf("iso"), "Descriptor signature detection only; filesystem parsing and extraction are not implemented."),
         planned("freearc", "FreeArc", FormatFamily.SPECIALIST_COMPRESSION, listOf("arc"), "Filename extension hint only; no reliable signature detector, multipart parser, or codec-chain decoder is implemented."),

@@ -80,6 +80,11 @@ object FileSignatureDetector {
             starts(0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x00) ||
                 starts(0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x01, 0x00) ->
                 match("rar", "rar", FileCategory.ARCHIVE, "RAR archive")
+            starts(0x21, 0x3c, 0x61, 0x72, 0x63, 0x68, 0x3e, 0x0a) ->
+                match("ar", "a", FileCategory.ARCHIVE, "Unix AR archive")
+            ascii(0, "070701") || ascii(0, "070702") || ascii(0, "070707") ||
+                starts(0x71, 0xc7) || starts(0xc7, 0x71) ->
+                match("cpio", "cpio", FileCategory.ARCHIVE, "CPIO archive")
             starts(0x1f, 0x8b) ->
                 match("gzip", "gz", FileCategory.ARCHIVE, "GZIP stream")
             ascii(0, "BZh") ->

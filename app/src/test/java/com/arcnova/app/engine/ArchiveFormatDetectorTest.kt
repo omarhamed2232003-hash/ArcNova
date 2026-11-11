@@ -73,15 +73,83 @@ class ArchiveFormatDetectorTest {
         assertFalse(archive.supportsZipExtraction(ArchiveFormat.RAR))
     }
 
+    @Test fun resolvesSupportedTarAndGzipFormatsFromExtensionsAndSignatures() {
+        val tar = ArchiveFormatDetector.detect("backup.tar")
+        assertEquals(ArchiveFormat.TAR, tar.supportedExtractionFormat(null))
+        assertEquals(ArchiveFormat.TAR, tar.supportedExtractionFormat(ArchiveFormat.UNKNOWN))
+        assertEquals(ArchiveFormat.TAR, tar.supportedExtractionFormat(ArchiveFormat.TAR))
+        assertEquals(null, tar.supportedExtractionFormat(ArchiveFormat.GZIP))
+
+        val gzip = ArchiveFormatDetector.detect("payload.gz")
+        assertEquals(ArchiveFormat.GZIP, gzip.supportedExtractionFormat(null))
+        assertEquals(ArchiveFormat.GZIP, gzip.supportedExtractionFormat(ArchiveFormat.GZIP))
+        assertEquals(null, gzip.supportedExtractionFormat(ArchiveFormat.TAR))
+
+        val signatureOnlyTar = ArchiveFormatDetector.detect("unknown.bin")
+        assertEquals(ArchiveFormat.TAR, signatureOnlyTar.supportedExtractionFormat(ArchiveFormat.TAR))
+        assertEquals(null, signatureOnlyTar.supportedExtractionFormat(ArchiveFormat.UNKNOWN))
+    }
+
+    @Test fun resolvesSevenZipForExtractionAndRejectsMultipartVolumes() {
+        val sevenZip = ArchiveFormatDetector.detect("archive.7z")
+        assertEquals(ArchiveFormat.SEVEN_ZIP, sevenZip.supportedExtractionFormat(null))
+        assertEquals(ArchiveFormat.SEVEN_ZIP, sevenZip.supportedExtractionFormat(ArchiveFormat.SEVEN_ZIP))
+        assertEquals(null, sevenZip.supportedExtractionFormat(ArchiveFormat.RAR))
+
+        val firstVolume = ArchiveFormatDetector.detect("archive.7z.001")
+        assertEquals(null, firstVolume.supportedExtractionFormat(ArchiveFormat.SEVEN_ZIP))
+    }
+
+    @Test fun supportedExtractionResolutionRejectsMultipartAndUnsupportedFormats() {
+        val multipartZip = ArchiveFormatDetector.detect("backup.zip.001")
+        assertEquals(null, multipartZip.supportedExtractionFormat(ArchiveFormat.ZIP))
+        assertEquals(ArchiveFormat.RAR, ArchiveFormatDetector.detect("backup.rar").supportedExtractionFormat(null))
+    }
+
+    @Test fun resolvesSingleVolumeRarOnlyWhenHeaderMatches() {
+        val rar = ArchiveFormatDetector.detect("archive.rar")
+        assertEquals(ArchiveFormat.RAR, rar.supportedExtractionFormat(null))
+        assertEquals(ArchiveFormat.RAR, rar.supportedExtractionFormat(ArchiveFormat.RAR))
+        assertEquals(null, rar.supportedExtractionFormat(ArchiveFormat.ZIP))
+    }
+
+    @Test fun resolvesBzip2AndXzExtractionWithoutMisclassifyingLzmaAlone() {
+        val bzip2 = ArchiveFormatDetector.detect("payload.bz2")
+        assertEquals(ArchiveFormat.BZIP2, bzip2.supportedExtractionFormat(null))
+        assertEquals(ArchiveFormat.BZIP2, bzip2.supportedExtractionFormat(ArchiveFormat.BZIP2))
+        assertEquals(null, bzip2.supportedExtractionFormat(ArchiveFormat.XZ))
+
+        val xz = ArchiveFormatDetector.detect("payload.tar.xz")
+        assertEquals(ArchiveFormat.XZ, xz.supportedExtractionFormat(null))
+        assertEquals(ArchiveFormat.XZ, xz.supportedExtractionFormat(ArchiveFormat.XZ))
+        assertEquals(null, xz.supportedExtractionFormat(ArchiveFormat.BZIP2))
+
+        val lzma = ArchiveFormatDetector.detect("payload.lzma")
+        assertEquals(ArchiveFormat.LZMA, lzma.format)
+        assertEquals(ArchiveFormat.LZMA, lzma.supportedExtractionFormat(null))
+        assertEquals(null, lzma.supportedExtractionFormat(ArchiveFormat.XZ))
+    }
+
+    @Test fun resolvesArDebianAndCpioFromExtensionsAndSignatures() {
+        assertEquals(ArchiveFormat.AR, ArchiveFormatDetector.detect("library.a").supportedExtractionFormat(ArchiveFormat.AR))
+        assertEquals(ArchiveFormat.AR, ArchiveFormatDetector.detect("package.deb").supportedExtractionFormat(ArchiveFormat.AR))
+        assertEquals(ArchiveFormat.CPIO, ArchiveFormatDetector.detect("initramfs.cpio").supportedExtractionFormat(ArchiveFormat.CPIO))
+        assertEquals(null, ArchiveFormatDetector.detect("package.deb").supportedExtractionFormat(ArchiveFormat.CPIO))
+        assertEquals(ArchiveFormat.AR, ArchiveFormatDetector.detect("unknown.bin").supportedExtractionFormat(ArchiveFormat.AR))
+        assertEquals(ArchiveFormat.CPIO, ArchiveFormatDetector.detect("unknown.bin").supportedExtractionFormat(ArchiveFormat.CPIO))
+    }
+
     @Test fun preservesRarMultipartFilenameDetection() {
         val numbered = ArchiveFormatDetector.detect("archive.part1.rar")
         assertEquals(ArchiveFormat.RAR, numbered.format)
         assertTrue(numbered.isMultipart)
+        assertEquals(null, numbered.supportedExtractionFormat(ArchiveFormat.RAR))
         assertEquals(1, numbered.partNumber)
 
         val legacy = ArchiveFormatDetector.detect("archive.r00")
         assertEquals(ArchiveFormat.RAR, legacy.format)
         assertTrue(legacy.isMultipart)
+        assertEquals(null, legacy.supportedExtractionFormat(ArchiveFormat.RAR))
         assertEquals(0, legacy.partNumber)
     }
 }
