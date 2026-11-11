@@ -535,7 +535,7 @@ object ArCpioExtractionEngine {
                     Phase.HEADER_PADDING -> {
                         val count = readPadding(buffer, offset, length, headerPaddingRemaining, "CPIO header")
                         headerPaddingRemaining -= count
-                        if (headerPaddingRemaining == 0) afterHeaderPadding()
+                        if (headerPaddingRemaining == 0) phase = afterHeaderPadding()
                         return count
                     }
                     Phase.DATA -> {
