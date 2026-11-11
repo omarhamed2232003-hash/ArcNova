@@ -97,7 +97,7 @@ object ArCpioExtractionEngine {
         val buffer = ByteArray(BUFFER_SIZE)
 
         try {
-            readerFactory(NonClosingInputStream(guarded)).use { reader ->
+            return readerFactory(NonClosingInputStream(guarded)).use { reader ->
                 if (!destination.exists() && !destination.mkdirs()) {
                     throw ArchiveExtractionException("Cannot create destination directory", 0L)
                 }
