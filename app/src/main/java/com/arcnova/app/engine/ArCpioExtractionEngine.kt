@@ -1,26 +1,28 @@
 package com.arcnova.app.engine
 
+import java.io.EOFException
 import java.io.File
 import java.io.FileOutputStream
 import java.io.FilterInputStream
 import java.io.InputStream
+import java.nio.charset.StandardCharsets
 import org.apache.commons.compress.archivers.ar.ArArchiveEntry
 import org.apache.commons.compress.archivers.ar.ArArchiveInputStream
 import org.apache.commons.compress.archivers.cpio.CpioArchiveEntry
 import org.apache.commons.compress.archivers.cpio.CpioArchiveInputStream
 
 /**
- * Bounded extraction for Unix ar and CPIO containers.
+ * Bounded extraction for Unix ar and the newc CPIO variants.
  *
- * AR is an outer archive format (including the outer container of Debian .deb packages);
- * nested control/data archives are intentionally left as separate files for a later operation.
- * CPIO regular files and directories are supported. Links and special inode types are rejected.
+ * AR is an outer archive format (including the outer container of Debian .deb packages).
+ * CPIO supports the newc and newc-with-CRC variants in this adapter. Older CPIO header
+ * formats are deliberately rejected until they have equivalent pre-parser metadata guards.
  */
 object ArCpioExtractionEngine {
     private const val BUFFER_SIZE = 64 * 1024
-    private const val AR_FILE_TYPE_MASK = 0xF000
-    private const val AR_REGULAR_FILE = 0x8000
-    private val arMetadataEntries = setOf("/", "/SYM64/", "__.SYMDEF", "__.SYMDEF SORTED", "__.SYMDEF_64")
+    private const val AR_HEADER_BYTES = 60
+    private const val AR_LONG_NAME_TABLE_MAX_BYTES = 1024 * 1024L
+    private const val CPIO_NEW_HEADER_BYTES = 110
 
     private enum class EntryType { FILE, DIRECTORY, UNSUPPORTED, METADATA }
 
@@ -43,8 +45,10 @@ object ArCpioExtractionEngine {
         cancellationRequested: () -> Boolean = { false },
         onProgress: (ArchiveExtractionProgress) -> Unit = {}
     ): ArchiveExtractionResult = extract(
-        input, destination, maxArchiveBytes, policy, cancellationRequested, onProgress
-    ) { source -> ArReader(source) }
+        input, destination, maxArchiveBytes, policy, cancellationRequested, onProgress,
+        guardFactory = { ArHeaderGuardInputStream(it, policy.maxPathLength) },
+        readerFactory = { ArReader(it) }
+    )
 
     fun extractCpio(
         input: InputStream,
@@ -54,8 +58,10 @@ object ArCpioExtractionEngine {
         cancellationRequested: () -> Boolean = { false },
         onProgress: (ArchiveExtractionProgress) -> Unit = {}
     ): ArchiveExtractionResult = extract(
-        input, destination, maxArchiveBytes, policy, cancellationRequested, onProgress
-    ) { source -> CpioReader(source) }
+        input, destination, maxArchiveBytes, policy, cancellationRequested, onProgress,
+        guardFactory = { NewcHeaderGuardInputStream(it, policy.maxPathLength) },
+        readerFactory = { CpioReader(it) }
+    )
 
     private fun extract(
         input: InputStream,
@@ -64,6 +70,7 @@ object ArCpioExtractionEngine {
         policy: ExtractionPolicy,
         cancellationRequested: () -> Boolean,
         onProgress: (ArchiveExtractionProgress) -> Unit,
+        guardFactory: (InputStream) -> InputStream,
         readerFactory: (InputStream) -> Reader
     ): ArchiveExtractionResult {
         require(maxArchiveBytes > 0L) { "maxArchiveBytes must be positive" }
@@ -77,6 +84,7 @@ object ArCpioExtractionEngine {
         }
 
         val bounded = BoundedInputStream(input, maxArchiveBytes, cancellationRequested)
+        val guarded = guardFactory(bounded)
         val destinationExisted = destination.exists()
         var root: File? = null
         val createdFiles = mutableListOf<File>()
@@ -89,7 +97,7 @@ object ArCpioExtractionEngine {
         val buffer = ByteArray(BUFFER_SIZE)
 
         try {
-            readerFactory(NonClosingInputStream(bounded)).use { reader ->
+            readerFactory(NonClosingInputStream(guarded)).use { reader ->
                 if (!destination.exists() && !destination.mkdirs()) {
                     throw ArchiveExtractionException("Cannot create destination directory", 0L)
                 }
@@ -140,7 +148,6 @@ object ArCpioExtractionEngine {
                             output, root!!, createdDirectories, totalBytes
                         )
                         directories++
-                        drainEntry(reader, buffer, cancellationRequested, totalBytes)
                         onProgress(ArchiveExtractionProgress(entries, files, directories, totalBytes, relative))
                         continue
                     }
@@ -267,9 +274,8 @@ object ArCpioExtractionEngine {
             val entry = archive.nextEntry ?: return null
             val name = entry.name
             val type = when {
-                name in arMetadataEntries -> EntryType.METADATA
-                (entry.mode and AR_FILE_TYPE_MASK) == 0 ||
-                    (entry.mode and AR_FILE_TYPE_MASK) == AR_REGULAR_FILE -> EntryType.FILE
+                name in setOf("/", "/SYM64/", "__.SYMDEF", "__.SYMDEF SORTED", "__.SYMDEF_64") -> EntryType.METADATA
+                (entry.mode and 0xF000) == 0 || (entry.mode and 0xF000) == 0x8000 -> EntryType.FILE
                 else -> EntryType.UNSUPPORTED
             }
             return Entry(name, entry.size, type)
@@ -294,6 +300,348 @@ object ArCpioExtractionEngine {
 
         override fun read(buffer: ByteArray): Int = archive.read(buffer, 0, buffer.size)
         override fun close() = archive.close()
+    }
+
+    /**
+     * Prevents Commons Compress from allocating a GNU string table or BSD long name from
+     * an archive-declared length before ArcNova can validate it.
+     */
+    private class ArHeaderGuardInputStream(
+        input: InputStream,
+        private val maximumPathLength: Int
+    ) : FilterInputStream(input) {
+        private enum class Phase { MAGIC, HEADER, DATA, PADDING, EOF }
+        private var phase = Phase.MAGIC
+        private val magic = ByteArray(8)
+        private var magicPosition = 0
+        private val header = ByteArray(AR_HEADER_BYTES)
+        private var headerPosition = 0
+        private var dataRemaining = 0L
+        private var paddingRemaining = 0
+
+        override fun read(): Int {
+            val one = ByteArray(1)
+            val count = read(one, 0, 1)
+            return if (count < 0) -1 else one[0].toInt() and 0xff
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            if (offset < 0 || length < 0 || offset > buffer.size - length) throw IndexOutOfBoundsException()
+            if (length == 0) return 0
+            while (true) {
+                when (phase) {
+                    Phase.MAGIC -> {
+                        readExactly(magic, allowCleanEof = false)
+                        if (!magic.contentEquals("!<arch>\n".toByteArray(StandardCharsets.US_ASCII))) {
+                            throw ArchiveExtractionIntegrityException("Invalid AR archive signature", 0L)
+                        }
+                        phase = Phase.HEADER
+                        if (length < magic.size) {
+                            magic.copyInto(buffer, offset, 0, length)
+                            magicPosition = length
+                            return length
+                        }
+                        magic.copyInto(buffer, offset)
+                        return magic.size
+                    }
+                    Phase.HEADER -> {
+                        if (headerPosition == 0 && !readHeader()) {
+                            phase = Phase.EOF
+                            return -1
+                        }
+                        val count = minOf(length, AR_HEADER_BYTES - headerPosition)
+                        header.copyInto(buffer, offset, headerPosition, headerPosition + count)
+                        headerPosition += count
+                        if (headerPosition == AR_HEADER_BYTES) {
+                            headerPosition = 0
+                            phase = if (dataRemaining == 0L) {
+                                if (paddingRemaining == 0) Phase.HEADER else Phase.PADDING
+                            } else Phase.DATA
+                        }
+                        return count
+                    }
+                    Phase.DATA -> {
+                        val requested = minOf(length.toLong(), dataRemaining).toInt()
+                        val count = super.read(buffer, offset, requested)
+                        if (count < 0) throw EOFException("Truncated AR member data")
+                        if (count == 0) return 0
+                        dataRemaining -= count
+                        if (dataRemaining == 0L) {
+                            phase = if (paddingRemaining == 0) Phase.HEADER else Phase.PADDING
+                        }
+                        return count
+                    }
+                    Phase.PADDING -> {
+                        val value = super.read()
+                        if (value < 0) throw EOFException("Missing AR member alignment byte")
+                        paddingRemaining = 0
+                        phase = Phase.HEADER
+                        buffer[offset] = value.toByte()
+                        return 1
+                    }
+                    Phase.EOF -> return -1
+                }
+            }
+        }
+
+        private fun readHeader(): Boolean {
+            var position = 0
+            while (position < header.size) {
+                val count = super.read(header, position, header.size - position)
+                if (count < 0) {
+                    if (position == 0) return false
+                    throw EOFException("Truncated AR member header")
+                }
+                if (count == 0) {
+                    val value = super.read()
+                    if (value < 0) {
+                        if (position == 0) return false
+                        throw EOFException("Truncated AR member header")
+                    }
+                    header[position++] = value.toByte()
+                } else position += count
+            }
+
+            if (header[58] != 0x60.toByte() || header[59] != 0x0a.toByte()) {
+                throw ArchiveExtractionIntegrityException("Invalid AR member header trailer", 0L)
+            }
+            val sizeText = String(header, 48, 10, StandardCharsets.US_ASCII).trim()
+            if (sizeText.isEmpty() || sizeText.any { !it.isDigit() }) {
+                throw ArchiveExtractionIntegrityException("Invalid AR member size field", 0L)
+            }
+            val size = sizeText.toLongOrNull()
+                ?: throw ArchiveExtractionIntegrityException("AR member size overflows", 0L)
+            val name = String(header, 0, 16, StandardCharsets.US_ASCII).trim()
+            if (name == "//" && size > AR_LONG_NAME_TABLE_MAX_BYTES) {
+                throw ArchiveExtractionLimitException(
+                    "GNU AR long-name table exceeds ${AR_LONG_NAME_TABLE_MAX_BYTES} bytes", 0L
+                )
+            }
+            if (name.startsWith("#1/")) {
+                val nameLength = name.substring(3).toIntOrNull()
+                    ?: throw ArchiveExtractionIntegrityException("Invalid BSD AR long-name length", 0L)
+                if (nameLength !in 1..maximumPathLength + 1 || nameLength.toLong() > size) {
+                    throw ArchiveExtractionLimitException("BSD AR long name exceeds configured path limit", 0L)
+                }
+            }
+            dataRemaining = size
+            paddingRemaining = (size and 1L).toInt()
+            return true
+        }
+
+        private fun readExactly(target: ByteArray, allowCleanEof: Boolean) {
+            var position = 0
+            while (position < target.size) {
+                val count = super.read(target, position, target.size - position)
+                if (count < 0) {
+                    if (position == 0 && allowCleanEof) return
+                    throw EOFException("Truncated AR global header")
+                }
+                if (count == 0) {
+                    val value = super.read()
+                    if (value < 0) throw EOFException("Truncated AR global header")
+                    target[position++] = value.toByte()
+                } else position += count
+            }
+        }
+
+        override fun skip(n: Long): Long {
+            if (n <= 0L) return 0L
+            val buffer = ByteArray(minOf(BUFFER_SIZE.toLong(), n).toInt())
+            var skipped = 0L
+            while (skipped < n) {
+                val count = read(buffer, 0, minOf(buffer.size.toLong(), n - skipped).toInt())
+                if (count < 0) break
+                if (count == 0) continue
+                skipped += count
+            }
+            return skipped
+        }
+    }
+
+    /**
+     * Guards newc metadata before the Commons Compress parser receives it. The name-size field
+     * is checked before its variable-length NUL-terminated name is exposed to that parser.
+     */
+    private class NewcHeaderGuardInputStream(
+        input: InputStream,
+        private val maximumPathLength: Int
+    ) : FilterInputStream(input) {
+        private enum class Phase { HEADER, NAME, HEADER_PADDING, DATA, DATA_PADDING, EOF }
+        private var phase = Phase.HEADER
+        private val header = ByteArray(CPIO_NEW_HEADER_BYTES)
+        private var headerPosition = 0
+        private var name = ByteArray(0)
+        private var namePosition = 0
+        private var dataRemaining = 0L
+        private var headerPaddingRemaining = 0
+        private var dataPaddingRemaining = 0
+        private var trailer = false
+
+        override fun read(): Int {
+            val one = ByteArray(1)
+            val count = read(one, 0, 1)
+            return if (count < 0) -1 else one[0].toInt() and 0xff
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            if (offset < 0 || length < 0 || offset > buffer.size - length) throw IndexOutOfBoundsException()
+            if (length == 0) return 0
+            while (true) {
+                when (phase) {
+                    Phase.HEADER -> {
+                        if (headerPosition == 0 && !prepareHeader()) {
+                            phase = Phase.EOF
+                            return -1
+                        }
+                        val count = minOf(length, CPIO_NEW_HEADER_BYTES - headerPosition)
+                        header.copyInto(buffer, offset, headerPosition, headerPosition + count)
+                        headerPosition += count
+                        if (headerPosition == CPIO_NEW_HEADER_BYTES) {
+                            headerPosition = 0
+                            phase = Phase.NAME
+                        }
+                        return count
+                    }
+                    Phase.NAME -> {
+                        val count = minOf(length, name.size - namePosition)
+                        name.copyInto(buffer, offset, namePosition, namePosition + count)
+                        namePosition += count
+                        if (namePosition == name.size) {
+                            namePosition = 0
+                            phase = if (headerPaddingRemaining == 0) {
+                                afterHeaderPadding()
+                            } else Phase.HEADER_PADDING
+                        }
+                        return count
+                    }
+                    Phase.HEADER_PADDING -> {
+                        val count = readPadding(buffer, offset, length, headerPaddingRemaining, "CPIO header")
+                        headerPaddingRemaining -= count
+                        if (headerPaddingRemaining == 0) afterHeaderPadding()
+                        return count
+                    }
+                    Phase.DATA -> {
+                        val requested = minOf(length.toLong(), dataRemaining).toInt()
+                        val count = super.read(buffer, offset, requested)
+                        if (count < 0) throw EOFException("Truncated CPIO entry data")
+                        if (count == 0) return 0
+                        dataRemaining -= count
+                        if (dataRemaining == 0L) phase = Phase.DATA_PADDING
+                        return count
+                    }
+                    Phase.DATA_PADDING -> {
+                        if (dataPaddingRemaining == 0) {
+                            phase = if (trailer) Phase.EOF else Phase.HEADER
+                            continue
+                        }
+                        val count = readPadding(buffer, offset, length, dataPaddingRemaining, "CPIO data")
+                        dataPaddingRemaining -= count
+                        if (dataPaddingRemaining == 0) phase = if (trailer) Phase.EOF else Phase.HEADER
+                        return count
+                    }
+                    Phase.EOF -> return -1
+                }
+            }
+        }
+
+        private fun prepareHeader(): Boolean {
+            var position = 0
+            while (position < header.size) {
+                val count = super.read(header, position, header.size - position)
+                if (count < 0) {
+                    if (position == 0) return false
+                    throw EOFException("Truncated CPIO newc header")
+                }
+                if (count == 0) {
+                    val value = super.read()
+                    if (value < 0) {
+                        if (position == 0) return false
+                        throw EOFException("Truncated CPIO newc header")
+                    }
+                    header[position++] = value.toByte()
+                } else position += count
+            }
+            val magic = String(header, 0, 6, StandardCharsets.US_ASCII)
+            if (magic != "070701" && magic != "070702") {
+                throw ArchiveExtractionUnsupportedFeatureException(
+                    "Only CPIO newc (070701) and newc-with-CRC (070702) are supported", 0L
+                )
+            }
+            val nameSize = parseHexField(header, 94, 8, "CPIO name size")
+            if (nameSize !in 1L..(maximumPathLength.toLong() + 1L)) {
+                throw ArchiveExtractionLimitException("CPIO name exceeds configured path limit", 0L)
+            }
+            dataRemaining = parseHexField(header, 54, 8, "CPIO entry size")
+            if (dataRemaining < 0L) throw ArchiveExtractionIntegrityException("Invalid CPIO entry size", 0L)
+
+            name = ByteArray(nameSize.toInt())
+            readExactly(name, "CPIO entry name")
+            if (name.last() != 0.toByte() || name.dropLast(1).any { it == 0.toByte() }) {
+                throw ArchiveExtractionIntegrityException("Invalid CPIO NUL-terminated entry name", 0L)
+            }
+            trailer = name.copyOfRange(0, name.size - 1)
+                .contentEquals("TRAILER!!!".toByteArray(StandardCharsets.US_ASCII))
+            if (trailer && dataRemaining != 0L) {
+                throw ArchiveExtractionIntegrityException("CPIO trailer has a non-zero payload", 0L)
+            }
+            headerPaddingRemaining = ((4 - ((CPIO_NEW_HEADER_BYTES + name.size) % 4)) % 4)
+            dataPaddingRemaining = ((4 - (dataRemaining % 4).toInt()) % 4)
+            return true
+        }
+
+        private fun parseHexField(bytes: ByteArray, offset: Int, length: Int, label: String): Long {
+            val value = String(bytes, offset, length, StandardCharsets.US_ASCII)
+            if (value.any { it !in '0'..'9' && it !in 'a'..'f' && it !in 'A'..'F' }) {
+                throw ArchiveExtractionIntegrityException("Invalid $label field", 0L)
+            }
+            return value.toLongOrNull(16)
+                ?: throw ArchiveExtractionIntegrityException("$label field overflows", 0L)
+        }
+
+        private fun readExactly(target: ByteArray, label: String) {
+            var position = 0
+            while (position < target.size) {
+                val count = super.read(target, position, target.size - position)
+                if (count < 0) throw EOFException("Truncated $label")
+                if (count == 0) {
+                    val value = super.read()
+                    if (value < 0) throw EOFException("Truncated $label")
+                    target[position++] = value.toByte()
+                } else position += count
+            }
+        }
+
+        private fun readPadding(
+            buffer: ByteArray,
+            offset: Int,
+            length: Int,
+            remaining: Int,
+            label: String
+        ): Int {
+            val count = super.read(buffer, offset, minOf(length, remaining))
+            if (count < 0) throw EOFException("Truncated $label alignment padding")
+            return count
+        }
+
+        private fun afterHeaderPadding(): Phase {
+            return if (trailer) Phase.EOF
+            else if (dataRemaining == 0L) Phase.DATA_PADDING
+            else Phase.DATA
+        }
+
+        override fun skip(n: Long): Long {
+            if (n <= 0L) return 0L
+            val buffer = ByteArray(minOf(BUFFER_SIZE.toLong(), n).toInt())
+            var skipped = 0L
+            while (skipped < n) {
+                val count = read(buffer, 0, minOf(buffer.size.toLong(), n - skipped).toInt())
+                if (count < 0) break
+                if (count == 0) continue
+                skipped += count
+            }
+            return skipped
+        }
     }
 
     private class NonClosingInputStream(input: InputStream) : FilterInputStream(input) {
@@ -321,6 +669,7 @@ object ArCpioExtractionEngine {
         }
 
         override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            if (offset < 0 || length < 0 || offset > buffer.size - length) throw IndexOutOfBoundsException()
             if (length == 0) return 0
             checkCancelled()
             if (bytesRead >= maximumBytes) return read()
@@ -328,6 +677,19 @@ object ArCpioExtractionEngine {
             val count = super.read(buffer, offset, allowed)
             if (count > 0) bytesRead += count
             return count
+        }
+
+        override fun skip(n: Long): Long {
+            if (n <= 0L) return 0L
+            val buffer = ByteArray(minOf(BUFFER_SIZE.toLong(), n).toInt())
+            var skipped = 0L
+            while (skipped < n) {
+                val count = read(buffer, 0, minOf(buffer.size.toLong(), n - skipped).toInt())
+                if (count < 0) break
+                if (count == 0) continue
+                skipped += count
+            }
+            return skipped
         }
 
         private fun checkCancelled() {
