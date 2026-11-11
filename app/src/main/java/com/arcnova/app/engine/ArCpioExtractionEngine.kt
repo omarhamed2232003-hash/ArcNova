@@ -286,7 +286,7 @@ object ArCpioExtractionEngine {
     }
 
     private class CpioReader(input: InputStream) : Reader {
-        private val archive = CpioArchiveInputStream(input)
+        private val archive = GuardedCpioArchiveInputStream(input)
 
         override fun nextEntry(): Entry? {
             val entry = archive.nextEntry ?: return null
@@ -300,6 +300,21 @@ object ArCpioExtractionEngine {
 
         override fun read(buffer: ByteArray): Int = archive.read(buffer, 0, buffer.size)
         override fun close() = archive.close()
+    }
+
+    /**
+     * Commons Compress calls skip(1..3) while parsing newc header/data alignment. During header
+     * parsing, its current entry has not yet been assigned, so the superclass skip/read path
+     * cannot consume header padding. Consume only these fixed-size alignment bytes directly
+     * through the guarded stream. Larger skips still use the superclass so skipped file data
+     * participates in entry-byte and CRC accounting.
+     */
+    private class GuardedCpioArchiveInputStream(
+        private val guardedInput: InputStream
+    ) : CpioArchiveInputStream(guardedInput) {
+        override fun skip(n: Long): Long {
+            return if (n in 1L..3L) guardedInput.skip(n) else super.skip(n)
+        }
     }
 
     /**
