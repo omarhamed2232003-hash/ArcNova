@@ -58,17 +58,25 @@ class ArCpioExtractionEngineTest {
 
     @Test fun arRejectsNonRegularMembersAndRollsBack() {
         val destination = tempDir()
+        val output = ByteArrayOutputStream()
         try {
+            ArArchiveOutputStream(output).use { archive ->
+                archive.putArchiveEntry(ArArchiveEntry("valid.txt", 6))
+                archive.write("remove".toByteArray())
+                archive.closeArchiveEntry()
+                archive.putArchiveEntry(ArArchiveEntry("link", 6, 0, 0, 0xA1FF, 0))
+                archive.write("target".toByteArray())
+                archive.closeArchiveEntry()
+                archive.finish()
+            }
             assertThrows(ArchiveExtractionUnsupportedFeatureException::class.java) {
                 ArCpioExtractionEngine.extractAr(
-                    ByteArrayInputStream(arArchive("valid.txt" to "remove".toByteArray(), "invalid.txt" to "blocked".toByteArray()).also {
-                        // A non-regular AR mode is not emitted by the normal fixture helper.
-                    }),
+                    ByteArrayInputStream(output.toByteArray()),
                     destination,
-                    maxArchiveBytes = 1024 * 1024L,
-                    policy = ExtractionPolicy(maxEntries = 0)
+                    maxArchiveBytes = 1024 * 1024L
                 )
             }
+            assertTrue(destination.listFiles().orEmpty().isEmpty())
         } finally {
             destination.deleteRecursively()
         }
