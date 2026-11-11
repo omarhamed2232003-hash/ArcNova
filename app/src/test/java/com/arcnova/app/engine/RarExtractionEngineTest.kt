@@ -64,8 +64,8 @@ class RarExtractionEngineTest {
         } finally { cache.deleteRecursively() }
     }
 
-    @Test fun rejectsEncryptedEntriesAndLinks() {
-        val cache = Files.createTempDirectory("arcnova-rar-flags").toFile()
+    @Test fun rejectsEncryptedEntries() {
+        val cache = Files.createTempDirectory("arcnova-rar-encrypted").toFile()
         val destination = File(cache, "out")
         try {
             RarExtractionEngine.extractWithReaderFactory(
@@ -77,6 +77,50 @@ class RarExtractionEngineTest {
             fail("Expected encrypted-entry rejection")
         } catch (_: ArchiveExtractionUnsupportedFeatureException) {
             assertFalse(destination.exists())
+        } finally { cache.deleteRecursively() }
+    }
+
+    @Test fun rejectsLinksAndSpecialEntryTypes() {
+        listOf(RarExtractionEngine.EntryType.LINK, RarExtractionEngine.EntryType.OTHER).forEach { type ->
+            val cache = Files.createTempDirectory("arcnova-rar-type").toFile()
+            val destination = File(cache, "out")
+            try {
+                RarExtractionEngine.extractWithReaderFactory(
+                    ByteArrayInputStream(byteArrayOf(1)), cache, destination, 1024,
+                    readerFactory = RarExtractionEngine.ReaderFactory {
+                        FakeReader(listOf(Fixture(RarExtractionEngine.Entry("unsupported", type, 0))))
+                    }
+                )
+                fail("Expected unsupported RAR entry-type rejection for $type")
+            } catch (_: ArchiveExtractionUnsupportedFeatureException) {
+                assertFalse(destination.exists())
+            } finally { cache.deleteRecursively() }
+        }
+    }
+
+    @Test fun declaredSizeMismatchRollsBackEarlierAndPartialFiles() {
+        val cache = Files.createTempDirectory("arcnova-rar-size-mismatch").toFile()
+        val destination = File(cache, "out")
+        assertTrue(destination.mkdirs())
+        val preserved = File(destination, "keep.txt")
+        preserved.writeText("existing")
+        try {
+            RarExtractionEngine.extractWithReaderFactory(
+                ByteArrayInputStream(ByteArray(1024)), cache, destination, 2048,
+                readerFactory = RarExtractionEngine.ReaderFactory {
+                    FakeReader(listOf(
+                        Fixture(RarExtractionEngine.Entry("first.txt", RarExtractionEngine.EntryType.FILE, 3), "one".toByteArray()),
+                        Fixture(RarExtractionEngine.Entry("partial.txt", RarExtractionEngine.EntryType.FILE, 4), "two".toByteArray())
+                    ))
+                }
+            )
+            fail("Expected declared-size mismatch rejection")
+        } catch (_: ArchiveExtractionIntegrityException) {
+            assertEquals("existing", preserved.readText())
+            assertFalse(File(destination, "first.txt").exists())
+            assertFalse(File(destination, "partial.txt").exists())
+            assertEquals(listOf("keep.txt"), destination.list()?.toList())
+            assertEquals(listOf("out"), cache.list()?.toList())
         } finally { cache.deleteRecursively() }
     }
 
