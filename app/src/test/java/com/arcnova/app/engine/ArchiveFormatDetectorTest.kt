@@ -130,6 +130,15 @@ class ArchiveFormatDetectorTest {
         assertEquals(null, lzma.supportedExtractionFormat(ArchiveFormat.XZ))
     }
 
+    @Test fun resolvesArDebianAndCpioFromExtensionsAndSignatures() {
+        assertEquals(ArchiveFormat.AR, ArchiveFormatDetector.detect("library.a").supportedExtractionFormat(ArchiveFormat.AR))
+        assertEquals(ArchiveFormat.AR, ArchiveFormatDetector.detect("package.deb").supportedExtractionFormat(ArchiveFormat.AR))
+        assertEquals(ArchiveFormat.CPIO, ArchiveFormatDetector.detect("initramfs.cpio").supportedExtractionFormat(ArchiveFormat.CPIO))
+        assertEquals(null, ArchiveFormatDetector.detect("package.deb").supportedExtractionFormat(ArchiveFormat.CPIO))
+        assertEquals(ArchiveFormat.AR, ArchiveFormatDetector.detect("unknown.bin").supportedExtractionFormat(ArchiveFormat.AR))
+        assertEquals(ArchiveFormat.CPIO, ArchiveFormatDetector.detect("unknown.bin").supportedExtractionFormat(ArchiveFormat.CPIO))
+    }
+
     @Test fun preservesRarMultipartFilenameDetection() {
         val numbered = ArchiveFormatDetector.detect("archive.part1.rar")
         assertEquals(ArchiveFormat.RAR, numbered.format)

@@ -23,6 +23,15 @@ class FileSignatureDetectorTest {
         assertEquals("mp4", FileSignatureDetector.detect(byteArrayOf(0,0,0,0)+ "ftyp".toByteArray())!!.id)
     }
 
+    @Test fun recognizesUnixArAndCpioHeaders() {
+        assertEquals("ar", FileSignatureDetector.detect("!<arch>\n".toByteArray())!!.id)
+        assertEquals("cpio", FileSignatureDetector.detect("070701".toByteArray())!!.id)
+        assertEquals("cpio", FileSignatureDetector.detect("070702".toByteArray())!!.id)
+        assertEquals("cpio", FileSignatureDetector.detect("070707".toByteArray())!!.id)
+        assertEquals("cpio", FileSignatureDetector.detect(byteArrayOf(0x71, 0xc7.toByte()))!!.id)
+        assertEquals("cpio", FileSignatureDetector.detect(byteArrayOf(0xc7.toByte(), 0x71))!!.id)
+    }
+
     @Test fun recognizesGameAndInstallerContainerHeaders() {
         assertEquals("source-vpk", FileSignatureDetector.detect(byteArrayOf(0x34, 0x12, 0xaa.toByte(), 0x55))!!.id)
         assertEquals("xp3", FileSignatureDetector.detect(

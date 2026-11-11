@@ -17,8 +17,8 @@ class FormatCapabilityRegistryTest {
 
     @Test fun supportedGeneralArchiveFormatsAreTheImplementedOperations() {
         val extraction = FormatCapabilityRegistry.available(FormatOperation.EXTRACT)
-        assertEquals(listOf("zip", "7z", "rar", "tar", "gzip", "bzip2", "xz", "lzma", "zstandard"), extraction.map { it.id })
-        listOf("zip", "7z", "rar", "tar", "gzip", "bzip2", "xz", "lzma", "zstandard").forEach { id ->
+        assertEquals(listOf("zip", "7z", "rar", "ar", "cpio", "tar", "gzip", "bzip2", "xz", "lzma", "zstandard"), extraction.map { it.id })
+        listOf("zip", "7z", "rar", "ar", "cpio", "tar", "gzip", "bzip2", "xz", "lzma", "zstandard").forEach { id ->
             assertTrue("$id extraction should be CI-tested", FormatCapabilityRegistry.findById(id)!!.supports(FormatOperation.EXTRACT))
         }
         assertFalse(FormatCapabilityRegistry.findById("freearc")!!.supports(FormatOperation.EXTRACT))
@@ -26,7 +26,7 @@ class FormatCapabilityRegistryTest {
     }
 
     @Test fun sevenZTarAndGzipInspectionRemainUnavailable() {
-        listOf("7z", "rar", "tar", "gzip", "bzip2", "xz", "lzma", "zstandard").forEach { id ->
+        listOf("7z", "rar", "ar", "cpio", "tar", "gzip", "bzip2", "xz", "lzma", "zstandard").forEach { id ->
             val capability = FormatCapabilityRegistry.findById(id)!!
             assertEquals(SupportLevel.IMPLEMENTED_CI_TESTED, capability.operationSupport[FormatOperation.EXTRACT])
             assertEquals(SupportLevel.PLANNED, capability.operationSupport[FormatOperation.INSPECT])
@@ -65,8 +65,12 @@ class FormatCapabilityRegistryTest {
         val tar = ByteArray(263)
         "ustar".toByteArray().copyInto(tar, 257)
         assertEquals("tar", FileSignatureDetector.detect(tar)!!.id)
+        assertEquals("ar", FileSignatureDetector.detect("!<arch>\n".toByteArray())!!.id)
+        assertEquals("cpio", FileSignatureDetector.detect("070701".toByteArray())!!.id)
         assertEquals("cab", FormatCapabilityRegistry.findByExtension("CAB").single().id)
         assertEquals("iso9660", FormatCapabilityRegistry.findByExtension(".ISO").single().id)
+        assertEquals("ar", FormatCapabilityRegistry.findByExtension(".DEB").single().id)
+        assertEquals("cpio", FormatCapabilityRegistry.findByExtension("CPIO").single().id)
     }
 
     @Test fun extensionLookupNormalizesDotsAndCase() {

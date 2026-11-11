@@ -13,6 +13,15 @@ class ArchiveSignatureDetectorTest {
         assertEquals(ArchiveFormat.RAR, ArchiveSignatureDetector.detect(byteArrayOf(0x52,0x61,0x72,0x21,0x1a,0x07,0x00)))
         assertEquals(ArchiveFormat.RAR, ArchiveSignatureDetector.detect(byteArrayOf(0x52,0x61,0x72,0x21,0x1a,0x07,0x01,0x00)))
     }
+    @Test fun recognizesArAndAllCpioHeaderFamilies() {
+        assertEquals(ArchiveFormat.AR, ArchiveSignatureDetector.detect("!<arch>\n".toByteArray()))
+        listOf("070701", "070702", "070707").forEach { magic ->
+            assertEquals(ArchiveFormat.CPIO, ArchiveSignatureDetector.detect(magic.toByteArray()))
+        }
+        assertEquals(ArchiveFormat.CPIO, ArchiveSignatureDetector.detect(byteArrayOf(0x71, 0xc7.toByte())))
+        assertEquals(ArchiveFormat.CPIO, ArchiveSignatureDetector.detect(byteArrayOf(0xc7.toByte(), 0x71)))
+    }
+
     @Test fun recognizesStreamCompressionSignatures() {
         assertEquals(ArchiveFormat.GZIP, ArchiveSignatureDetector.detect(byteArrayOf(0x1f,0x8b.toByte())))
         assertEquals(ArchiveFormat.BZIP2, ArchiveSignatureDetector.detect("BZh".toByteArray()))

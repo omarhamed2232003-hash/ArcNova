@@ -184,6 +184,32 @@ object FormatCapabilityRegistry {
             ),
             notes = "Bounded single-stream Zstandard decompression uses zstd-jni 1.5.7-25 Android AAR with a 128 MiB maximum decoder window, input/output and expansion-ratio limits, cancellation, rollback, and CI tests. External dictionaries are not supported. Physical-device ABI and 16 KB page-size validation is pending."
         ),
+        FormatCapability(
+            id = "ar",
+            displayName = "AR / Debian package",
+            family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("a", "ar", "deb"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Bounded AR extraction uses the existing Apache Commons Compress 1.28.0 dependency. GNU/BSD long-name handling is delegated to its reader; symbol-table members are skipped, and ordinary members must be regular files. A .deb is extracted only as its outer AR container; nested control/data archives are separate files, not installed packages. Physical-device validation is pending."
+        ),
+        FormatCapability(
+            id = "cpio",
+            displayName = "CPIO",
+            family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("cpio"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Bounded CPIO extraction uses Apache Commons Compress 1.28.0 and supports old ASCII, old binary, newc, and newc-with-CRC readers. CRC is checked by the reader. Symbolic/hard links and special inode types are rejected. Physical-device validation is pending."
+        ),
         detected("cab", "Microsoft Cabinet", FormatFamily.GENERAL_ARCHIVE, listOf("cab"), "Signature detection only; CAB inspection and extraction are not implemented."),
         detected("iso9660", "ISO 9660", FormatFamily.GENERAL_ARCHIVE, listOf("iso"), "Descriptor signature detection only; filesystem parsing and extraction are not implemented."),
         planned("freearc", "FreeArc", FormatFamily.SPECIALIST_COMPRESSION, listOf("arc"), "Filename extension hint only; no reliable signature detector, multipart parser, or codec-chain decoder is implemented."),

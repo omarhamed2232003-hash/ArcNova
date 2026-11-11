@@ -33,6 +33,7 @@ import com.arcnova.app.engine.Bzip2XzExtractionEngine
 import com.arcnova.app.engine.SevenZExtractionEngine
 import com.arcnova.app.engine.ZstandardExtractionEngine
 import com.arcnova.app.engine.RarExtractionEngine
+import com.arcnova.app.engine.ArCpioExtractionEngine
 import com.arcnova.app.engine.ArchiveExtractionCancelledException
 import com.arcnova.app.engine.ZipExtractionCancelledException
 import com.arcnova.app.engine.TreeDocumentStore
@@ -106,7 +107,7 @@ class MainActivity : ComponentActivity() {
         val formatsCard = createCard()
         formatsCard.addView(sectionLabel("SUPPORTED IN THIS BUILD"))
         formatsCard.addView(TextView(this).apply {
-            text = "ZIP  ·  7Z  ·  RAR  ·  TAR  ·  GZIP\nBZIP2  ·  XZ  ·  LZMA  ·  ZSTD"
+            text = "ZIP  ·  7Z  ·  RAR  ·  AR  ·  CPIO\\nTAR  ·  GZIP  ·  BZIP2  ·  XZ  ·  ZSTD"
             textSize = 15f
             setTextColor(Color.WHITE)
             setLineSpacing(dp(5).toFloat(), 1f)
@@ -430,6 +431,28 @@ class MainActivity : ComponentActivity() {
                                 onProgress = { progress -> postProgress(progress) }
                             )
                             sevenZip.filesExtracted to sevenZip.bytesWritten
+                        }
+                        ArchiveFormat.AR -> {
+                            val ar = ArCpioExtractionEngine.extractAr(
+                                input = stream,
+                                destination = staging,
+                                maxArchiveBytes = MAX_ARCHIVE_INPUT_BYTES,
+                                policy = ExtractionPolicy(),
+                                cancellationRequested = { cancelRequested.get() },
+                                onProgress = { progress -> postProgress(progress) }
+                            )
+                            ar.filesExtracted to ar.bytesWritten
+                        }
+                        ArchiveFormat.CPIO -> {
+                            val cpio = ArCpioExtractionEngine.extractCpio(
+                                input = stream,
+                                destination = staging,
+                                maxArchiveBytes = MAX_ARCHIVE_INPUT_BYTES,
+                                policy = ExtractionPolicy(),
+                                cancellationRequested = { cancelRequested.get() },
+                                onProgress = { progress -> postProgress(progress) }
+                            )
+                            cpio.filesExtracted to cpio.bytesWritten
                         }
                         ArchiveFormat.TAR -> {
                             val tar = TarGzipExtractionEngine.extractTar(

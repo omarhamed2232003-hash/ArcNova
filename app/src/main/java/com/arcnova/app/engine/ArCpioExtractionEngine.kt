@@ -331,18 +331,17 @@ object ArCpioExtractionEngine {
             while (true) {
                 when (phase) {
                     Phase.MAGIC -> {
-                        readExactly(magic, allowCleanEof = false)
-                        if (!magic.contentEquals("!<arch>\n".toByteArray(StandardCharsets.US_ASCII))) {
-                            throw ArchiveExtractionIntegrityException("Invalid AR archive signature", 0L)
+                        if (magicPosition == 0) {
+                            readExactly(magic)
+                            if (!magic.contentEquals("!<arch>\n".toByteArray(StandardCharsets.US_ASCII))) {
+                                throw ArchiveExtractionIntegrityException("Invalid AR archive signature", 0L)
+                            }
                         }
-                        phase = Phase.HEADER
-                        if (length < magic.size) {
-                            magic.copyInto(buffer, offset, 0, length)
-                            magicPosition = length
-                            return length
-                        }
-                        magic.copyInto(buffer, offset)
-                        return magic.size
+                        val count = minOf(length, magic.size - magicPosition)
+                        magic.copyInto(buffer, offset, magicPosition, magicPosition + count)
+                        magicPosition += count
+                        if (magicPosition == magic.size) phase = Phase.HEADER
+                        return count
                     }
                     Phase.HEADER -> {
                         if (headerPosition == 0 && !readHeader()) {
@@ -420,7 +419,8 @@ object ArCpioExtractionEngine {
             if (name.startsWith("#1/")) {
                 val nameLength = name.substring(3).toIntOrNull()
                     ?: throw ArchiveExtractionIntegrityException("Invalid BSD AR long-name length", 0L)
-                if (nameLength !in 1..maximumPathLength + 1 || nameLength.toLong() > size) {
+                val maxNameBytes = minOf(maximumPathLength.toLong() + 1L, 4097L)
+                if (nameLength < 1 || nameLength.toLong() > maxNameBytes || nameLength.toLong() > size) {
                     throw ArchiveExtractionLimitException("BSD AR long name exceeds configured path limit", 0L)
                 }
             }
@@ -429,7 +429,7 @@ object ArCpioExtractionEngine {
             return true
         }
 
-        private fun readExactly(target: ByteArray, allowCleanEof: Boolean) {
+        private fun readExactly(target: ByteArray) {
             var position = 0
             while (position < target.size) {
                 val count = super.read(target, position, target.size - position)
@@ -569,7 +569,7 @@ object ArCpioExtractionEngine {
                 )
             }
             val nameSize = parseHexField(header, 94, 8, "CPIO name size")
-            if (nameSize !in 1L..(maximumPathLength.toLong() + 1L)) {
+            if (nameSize !in 1L..minOf(maximumPathLength.toLong() + 1L, 4097L)) {
                 throw ArchiveExtractionLimitException("CPIO name exceeds configured path limit", 0L)
             }
             dataRemaining = parseHexField(header, 54, 8, "CPIO entry size")

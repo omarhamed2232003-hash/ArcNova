@@ -2,7 +2,7 @@ package com.arcnova.app.engine
 
 /** Best-effort filename-based format hint; archive bytes are not inspected. */
 enum class ArchiveFormat(val label: String) {
-    ZIP("ZIP"), SEVEN_ZIP("7-Zip"), RAR("RAR"), TAR("TAR"),
+    ZIP("ZIP"), SEVEN_ZIP("7-Zip"), RAR("RAR"), AR("AR / Debian package"), CPIO("CPIO"), TAR("TAR"),
     GZIP("GZIP"), BZIP2("BZIP2"), XZ("XZ"), LZMA("LZMA-alone"), ZSTANDARD("Zstandard"),
     FREEARC("FreeArc"), WINRK("WinRK"), KGB("KGB"), UHARC("UHARC"),
     ZPAQ("ZPAQ"), DGCA("DGCA"), STUFFIT("StuffIt"),
@@ -29,7 +29,8 @@ data class ArchiveDetection(
             signatureFormat?.takeIf { it != ArchiveFormat.UNKNOWN } ?: ArchiveFormat.UNKNOWN
         }
         return resolved.takeIf {
-            it == ArchiveFormat.ZIP || it == ArchiveFormat.SEVEN_ZIP || it == ArchiveFormat.TAR ||
+            it == ArchiveFormat.ZIP || it == ArchiveFormat.SEVEN_ZIP || it == ArchiveFormat.AR ||
+                it == ArchiveFormat.CPIO || it == ArchiveFormat.TAR ||
                 it == ArchiveFormat.GZIP || it == ArchiveFormat.BZIP2 || it == ArchiveFormat.XZ || it == ArchiveFormat.LZMA ||
                 it == ArchiveFormat.ZSTANDARD || it == ArchiveFormat.RAR
         }
@@ -67,6 +68,8 @@ object ArchiveFormatDetector {
             "zip" -> ArchiveFormat.ZIP
             "7z" -> ArchiveFormat.SEVEN_ZIP
             "rar" -> ArchiveFormat.RAR
+            "a", "ar", "deb" -> ArchiveFormat.AR
+            "cpio" -> ArchiveFormat.CPIO
             "tar" -> ArchiveFormat.TAR
             "gz", "gzip" -> ArchiveFormat.GZIP
             "bz2", "bzip2" -> ArchiveFormat.BZIP2

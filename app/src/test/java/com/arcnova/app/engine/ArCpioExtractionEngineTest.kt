@@ -101,21 +101,62 @@ class ArCpioExtractionEngineTest {
         }
     }
 
-    @Test fun cpioSupportsOldAsciiAndOldBinaryHeaders() {
+    @Test fun rejectsLegacyCpioHeadersBeforePassingThemToTheParser() {
         listOf(CpioConstants.FORMAT_OLD_ASCII, CpioConstants.FORMAT_OLD_BINARY).forEach { format ->
             val destination = tempDir()
-            val payload = "legacy-cpio".toByteArray()
             try {
-                val result = ArCpioExtractionEngine.extractCpio(
-                    ByteArrayInputStream(cpioArchive(format, CpioFixture("legacy.txt", CpioConstants.C_ISREG, payload, 1))),
-                    destination,
-                    maxArchiveBytes = 1024 * 1024L
-                )
-                assertEquals(1, result.filesExtracted)
-                assertArrayEquals(payload, File(destination, "legacy.txt").readBytes())
+                val legacy = cpioArchive(format, CpioFixture("legacy.txt", CpioConstants.C_ISREG, "legacy".toByteArray(), 1))
+                assertThrows(ArchiveExtractionUnsupportedFeatureException::class.java) {
+                    ArCpioExtractionEngine.extractCpio(
+                        ByteArrayInputStream(legacy),
+                        destination,
+                        maxArchiveBytes = 1024 * 1024L
+                    )
+                }
+                assertTrue(destination.listFiles().orEmpty().isEmpty())
             } finally {
                 destination.deleteRecursively()
             }
+        }
+    }
+
+    @Test fun rejectsCpioNameSizeBeforeTheParserCanAllocateIt() {
+        val malicious = ByteArray(110)
+        "070701".toByteArray().copyInto(malicious, 0)
+        "FFFFFFFF".toByteArray().copyInto(malicious, 94)
+        val destination = tempDir()
+        try {
+            assertThrows(ArchiveExtractionLimitException::class.java) {
+                ArCpioExtractionEngine.extractCpio(
+                    ByteArrayInputStream(malicious),
+                    destination,
+                    maxArchiveBytes = 1024 * 1024L
+                )
+            }
+            assertTrue(destination.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
+        }
+    }
+
+    @Test fun rejectsOversizedArGnuLongNameTableBeforeTheParserCanAllocateIt() {
+        val header = ByteArray(60) { 0x20 }
+        "//".toByteArray().copyInto(header, 0)
+        "1048577".toByteArray().copyInto(header, 48)
+        byteArrayOf(0x60, 0x0a).copyInto(header, 58)
+        val archive = "!<arch>\\n".toByteArray() + header
+        val destination = tempDir()
+        try {
+            assertThrows(ArchiveExtractionLimitException::class.java) {
+                ArCpioExtractionEngine.extractAr(
+                    ByteArrayInputStream(archive),
+                    destination,
+                    maxArchiveBytes = 2 * 1024 * 1024L
+                )
+            }
+            assertTrue(destination.listFiles().orEmpty().isEmpty())
+        } finally {
+            destination.deleteRecursively()
         }
     }
 
@@ -226,7 +267,7 @@ class ArCpioExtractionEngineTest {
 
     private data class CpioFixture(
         val name: String,
-        val mode: Long,
+        val mode: Int,
         val payload: ByteArray,
         val links: Long
     )
@@ -249,7 +290,7 @@ class ArCpioExtractionEngineTest {
         CpioArchiveOutputStream(output, format).use { archive ->
             entries.forEachIndexed { index, fixture ->
                 val entry = CpioArchiveEntry(format, fixture.name, fixture.payload.size.toLong())
-                entry.setMode(fixture.mode)
+                entry.setMode(fixture.mode.toLong())
                 entry.setNumberOfLinks(fixture.links)
                 entry.setInode((index + 1).toLong())
                 if (format == CpioConstants.FORMAT_NEW_CRC) {
