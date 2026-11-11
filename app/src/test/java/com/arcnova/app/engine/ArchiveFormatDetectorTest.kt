@@ -106,6 +106,13 @@ class ArchiveFormatDetectorTest {
         assertEquals(null, ArchiveFormatDetector.detect("backup.rar").supportedExtractionFormat(null))
     }
 
+    @Test fun resolvesSingleVolumeRarOnlyWhenHeaderMatches() {
+        val rar = ArchiveFormatDetector.detect("archive.rar")
+        assertEquals(ArchiveFormat.RAR, rar.supportedExtractionFormat(null))
+        assertEquals(ArchiveFormat.RAR, rar.supportedExtractionFormat(ArchiveFormat.RAR))
+        assertEquals(null, rar.supportedExtractionFormat(ArchiveFormat.ZIP))
+    }
+
     @Test fun resolvesBzip2AndXzExtractionWithoutMisclassifyingLzmaAlone() {
         val bzip2 = ArchiveFormatDetector.detect("payload.bz2")
         assertEquals(ArchiveFormat.BZIP2, bzip2.supportedExtractionFormat(null))
@@ -127,11 +134,13 @@ class ArchiveFormatDetectorTest {
         val numbered = ArchiveFormatDetector.detect("archive.part1.rar")
         assertEquals(ArchiveFormat.RAR, numbered.format)
         assertTrue(numbered.isMultipart)
+        assertEquals(null, numbered.supportedExtractionFormat(ArchiveFormat.RAR))
         assertEquals(1, numbered.partNumber)
 
         val legacy = ArchiveFormatDetector.detect("archive.r00")
         assertEquals(ArchiveFormat.RAR, legacy.format)
         assertTrue(legacy.isMultipart)
+        assertEquals(null, legacy.supportedExtractionFormat(ArchiveFormat.RAR))
         assertEquals(0, legacy.partNumber)
     }
 }

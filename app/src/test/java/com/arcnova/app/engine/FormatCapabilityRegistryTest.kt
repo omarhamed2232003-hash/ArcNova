@@ -17,16 +17,16 @@ class FormatCapabilityRegistryTest {
 
     @Test fun supportedGeneralArchiveFormatsAreTheImplementedOperations() {
         val extraction = FormatCapabilityRegistry.available(FormatOperation.EXTRACT)
-        assertEquals(listOf("zip", "7z", "tar", "gzip", "bzip2", "xz", "lzma", "zstandard"), extraction.map { it.id })
-        listOf("zip", "7z", "tar", "gzip", "bzip2", "xz", "lzma", "zstandard").forEach { id ->
+        assertEquals(listOf("zip", "7z", "rar", "tar", "gzip", "bzip2", "xz", "lzma", "zstandard"), extraction.map { it.id })
+        listOf("zip", "7z", "rar", "tar", "gzip", "bzip2", "xz", "lzma", "zstandard").forEach { id ->
             assertTrue("$id extraction should be CI-tested", FormatCapabilityRegistry.findById(id)!!.supports(FormatOperation.EXTRACT))
         }
         assertFalse(FormatCapabilityRegistry.findById("freearc")!!.supports(FormatOperation.EXTRACT))
-        assertFalse(FormatCapabilityRegistry.findById("rar")!!.supports(FormatOperation.EXTRACT))
+        assertTrue(FormatCapabilityRegistry.findById("rar")!!.supports(FormatOperation.EXTRACT))
     }
 
     @Test fun sevenZTarAndGzipInspectionRemainUnavailable() {
-        listOf("7z", "tar", "gzip", "bzip2", "xz", "lzma", "zstandard").forEach { id ->
+        listOf("7z", "rar", "tar", "gzip", "bzip2", "xz", "lzma", "zstandard").forEach { id ->
             val capability = FormatCapabilityRegistry.findById(id)!!
             assertEquals(SupportLevel.IMPLEMENTED_CI_TESTED, capability.operationSupport[FormatOperation.EXTRACT])
             assertEquals(SupportLevel.PLANNED, capability.operationSupport[FormatOperation.INSPECT])

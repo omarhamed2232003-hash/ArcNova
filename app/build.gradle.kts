@@ -21,6 +21,7 @@ dependencies {
     implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("org.tukaani:xz:1.12")
     implementation("com.github.luben:zstd-jni:1.5.7-25@aar")
+    implementation("me.zhanghai.android.libarchive:library:1.1.7")
     testImplementation("com.github.luben:zstd-jni:1.5.7-25")
     testImplementation("junit:junit:4.13.2")
 }

@@ -101,7 +101,19 @@ object FormatCapabilityRegistry {
             ),
             notes = "Bounded 7z extraction uses Commons Compress 1.28.0 with XZ for Java 1.12. Only implemented compression/filter methods are accepted; encrypted entries and multipart volumes are not supported. LZMA/LZMA2 decoder memory is capped at 256 MiB. Physical-device validation is pending."
         ),
-        detected("rar", "RAR", FormatFamily.GENERAL_ARCHIVE, listOf("rar", "r00"), "Detection only; no RAR decoder is registered."),
+        FormatCapability(
+            id = "rar",
+            displayName = "RAR",
+            family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("rar", "r00"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Single-volume RAR3 and RAR5 extraction uses the Android native archive backend behind ArcNova's bounded transactional writer. Encrypted entries, links, unsupported entry types, and detected multipart filenames are rejected. Upstream RAR limitations and physical-device validation remain."
+        ),
         FormatCapability(
             id = "tar",
             displayName = "TAR",

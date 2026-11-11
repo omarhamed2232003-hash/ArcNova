@@ -32,6 +32,7 @@ import com.arcnova.app.engine.TarGzipExtractionEngine
 import com.arcnova.app.engine.Bzip2XzExtractionEngine
 import com.arcnova.app.engine.SevenZExtractionEngine
 import com.arcnova.app.engine.ZstandardExtractionEngine
+import com.arcnova.app.engine.RarExtractionEngine
 import com.arcnova.app.engine.ArchiveExtractionCancelledException
 import com.arcnova.app.engine.ZipExtractionCancelledException
 import com.arcnova.app.engine.TreeDocumentStore
@@ -105,7 +106,7 @@ class MainActivity : ComponentActivity() {
         val formatsCard = createCard()
         formatsCard.addView(sectionLabel("SUPPORTED IN THIS BUILD"))
         formatsCard.addView(TextView(this).apply {
-            text = "ZIP  ·  7Z  ·  TAR  ·  GZIP\nBZIP2  ·  XZ  ·  LZMA  ·  ZSTD"
+            text = "ZIP  ·  7Z  ·  RAR  ·  TAR  ·  GZIP\nBZIP2  ·  XZ  ·  LZMA  ·  ZSTD"
             textSize = 15f
             setTextColor(Color.WHITE)
             setLineSpacing(dp(5).toFloat(), 1f)
@@ -283,6 +284,8 @@ class MainActivity : ComponentActivity() {
                         }
                         extension.isMultipart && extension.format == ArchiveFormat.ZIP ->
                             "Multipart ZIP extraction is not supported yet."
+                        extension.isMultipart && extension.format == ArchiveFormat.RAR ->
+                            "Multipart RAR extraction is not supported yet."
                         extension.format != ArchiveFormat.UNKNOWN &&
                             signature != null && signature != ArchiveFormat.UNKNOWN &&
                             extension.format != signature ->
@@ -463,6 +466,18 @@ class MainActivity : ComponentActivity() {
                                 onProgress = { progress -> postProgress(progress) }
                             )
                             decoded.filesExtracted to decoded.bytesWritten
+                        }
+                        ArchiveFormat.RAR -> {
+                            val rar = RarExtractionEngine.extract(
+                                input = stream,
+                                cacheDirectory = cacheDir,
+                                destination = staging,
+                                maxArchiveBytes = MAX_ARCHIVE_INPUT_BYTES,
+                                policy = ExtractionPolicy(),
+                                cancellationRequested = { cancelRequested.get() },
+                                onProgress = { progress -> postProgress(progress) }
+                            )
+                            rar.filesExtracted to rar.bytesWritten
                         }
                         ArchiveFormat.ZSTANDARD -> {
                             val decoded = ZstandardExtractionEngine.decompress(
