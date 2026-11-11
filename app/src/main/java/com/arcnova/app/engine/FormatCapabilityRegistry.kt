@@ -208,7 +208,7 @@ object FormatCapabilityRegistry {
                 FormatOperation.INSPECT to SupportLevel.PLANNED,
                 FormatOperation.CREATE to SupportLevel.PLANNED
             ),
-            notes = "Bounded CPIO extraction uses Apache Commons Compress 1.28.0 and supports old ASCII, old binary, newc, and newc-with-CRC readers. CRC is checked by the reader. Symbolic/hard links and special inode types are rejected. Physical-device validation is pending."
+            notes = "Bounded CPIO extraction uses Apache Commons Compress 1.28.0 and supports newc and newc-with-CRC only. Legacy old ASCII and old binary CPIO headers are deliberately rejected before the Commons Compress parser receives them, because their variable-length name metadata does not yet have the same pre-allocation guard. CRC is checked by the reader. Symbolic/hard links and special inode types are rejected. Physical-device validation is pending."
         ),
         detected("cab", "Microsoft Cabinet", FormatFamily.GENERAL_ARCHIVE, listOf("cab"), "Signature detection only; CAB inspection and extraction are not implemented."),
         detected("iso9660", "ISO 9660", FormatFamily.GENERAL_ARCHIVE, listOf("iso"), "Descriptor signature detection only; filesystem parsing and extraction are not implemented."),

@@ -434,7 +434,6 @@ object ArCpioExtractionEngine {
             while (position < target.size) {
                 val count = super.read(target, position, target.size - position)
                 if (count < 0) {
-                    if (position == 0 && allowCleanEof) return
                     throw EOFException("Truncated AR global header")
                 }
                 if (count == 0) {

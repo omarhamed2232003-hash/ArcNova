@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity() {
         val formatsCard = createCard()
         formatsCard.addView(sectionLabel("SUPPORTED IN THIS BUILD"))
         formatsCard.addView(TextView(this).apply {
-            text = "ZIP  ·  7Z  ·  RAR  ·  AR  ·  CPIO\\nTAR  ·  GZIP  ·  BZIP2  ·  XZ  ·  ZSTD"
+            text = "ZIP  ·  7Z  ·  RAR  ·  AR  ·  CPIO\nTAR  ·  GZIP  ·  BZIP2  ·  XZ  ·  ZSTD"
             textSize = 15f
             setTextColor(Color.WHITE)
             setLineSpacing(dp(5).toFloat(), 1f)
