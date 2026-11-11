@@ -4,6 +4,7 @@ plugins {
 android {
     namespace = "com.arcnova.app"
     compileSdk = 37
+    compileSdkMinor = 2
     defaultConfig {
         applicationId = "com.arcnova.app"
         minSdk = 26
