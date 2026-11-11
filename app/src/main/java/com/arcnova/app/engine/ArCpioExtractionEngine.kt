@@ -313,7 +313,10 @@ object ArCpioExtractionEngine {
         private val guardedInput: InputStream
     ) : CpioArchiveInputStream(guardedInput) {
         override fun skip(n: Long): Long {
-            return if (n in 1L..3L) guardedInput.skip(n) else super.skip(n)
+            if (n !in 1L..3L) return super.skip(n)
+            val skipped = guardedInput.skip(n)
+            count(skipped)
+            return skipped
         }
     }
 
