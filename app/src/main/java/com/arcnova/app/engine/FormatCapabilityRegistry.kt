@@ -161,7 +161,17 @@ object FormatCapabilityRegistry {
             ),
             notes = "Single-stream legacy .lzma decompression uses XZ for Java 1.12 with a 128 MiB decoder memory limit, buffered input, bounded input/output, expansion-ratio checks, cancellation, rollback, and CI tests. This is distinct from the .xz container format; physical-device validation is pending."
         ),
-        detected("zstandard", "Zstandard", FormatFamily.GENERAL_ARCHIVE, listOf("zst", "zstd"), "Detection only; no Zstandard decoder is registered."),
+        FormatCapability(
+            id = "zstandard", displayName = "Zstandard", family = FormatFamily.GENERAL_ARCHIVE,
+            extensions = listOf("zst", "zstd"),
+            operationSupport = mapOf(
+                FormatOperation.DETECT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.EXTRACT to SupportLevel.IMPLEMENTED_CI_TESTED,
+                FormatOperation.INSPECT to SupportLevel.PLANNED,
+                FormatOperation.CREATE to SupportLevel.PLANNED
+            ),
+            notes = "Bounded single-stream Zstandard decompression uses zstd-jni 1.5.7-25 Android AAR with a 128 MiB maximum decoder window, input/output and expansion-ratio limits, cancellation, rollback, and CI tests. External dictionaries are not supported. Physical-device ABI and 16 KB page-size validation is pending."
+        ),
         detected("cab", "Microsoft Cabinet", FormatFamily.GENERAL_ARCHIVE, listOf("cab"), "Signature detection only; CAB inspection and extraction are not implemented."),
         detected("iso9660", "ISO 9660", FormatFamily.GENERAL_ARCHIVE, listOf("iso"), "Descriptor signature detection only; filesystem parsing and extraction are not implemented."),
         planned("freearc", "FreeArc", FormatFamily.SPECIALIST_COMPRESSION, listOf("arc"), "Filename extension hint only; no reliable signature detector, multipart parser, or codec-chain decoder is implemented."),

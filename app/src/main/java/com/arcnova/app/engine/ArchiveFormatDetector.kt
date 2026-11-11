@@ -30,7 +30,8 @@ data class ArchiveDetection(
         }
         return resolved.takeIf {
             it == ArchiveFormat.ZIP || it == ArchiveFormat.SEVEN_ZIP || it == ArchiveFormat.TAR ||
-                it == ArchiveFormat.GZIP || it == ArchiveFormat.BZIP2 || it == ArchiveFormat.XZ || it == ArchiveFormat.LZMA
+                it == ArchiveFormat.GZIP || it == ArchiveFormat.BZIP2 || it == ArchiveFormat.XZ || it == ArchiveFormat.LZMA ||
+                it == ArchiveFormat.ZSTANDARD
         }
     }
 
