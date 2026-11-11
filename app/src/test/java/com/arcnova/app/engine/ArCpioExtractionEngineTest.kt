@@ -144,7 +144,7 @@ class ArCpioExtractionEngineTest {
         "//".toByteArray().copyInto(header, 0)
         "1048577".toByteArray().copyInto(header, 48)
         byteArrayOf(0x60, 0x0a).copyInto(header, 58)
-        val archive = "!<arch>\\n".toByteArray() + header
+        val archive = byteArrayOf(0x21, 0x3c, 0x61, 0x72, 0x63, 0x68, 0x3e, 0x0a) + header
         val destination = tempDir()
         try {
             assertThrows(ArchiveExtractionLimitException::class.java) {
