@@ -103,7 +103,7 @@ class ArchiveFormatDetectorTest {
     @Test fun supportedExtractionResolutionRejectsMultipartAndUnsupportedFormats() {
         val multipartZip = ArchiveFormatDetector.detect("backup.zip.001")
         assertEquals(null, multipartZip.supportedExtractionFormat(ArchiveFormat.ZIP))
-        assertEquals(null, ArchiveFormatDetector.detect("backup.rar").supportedExtractionFormat(null))
+        assertEquals(ArchiveFormat.RAR, ArchiveFormatDetector.detect("backup.rar").supportedExtractionFormat(null))
     }
 
     @Test fun resolvesSingleVolumeRarOnlyWhenHeaderMatches() {
