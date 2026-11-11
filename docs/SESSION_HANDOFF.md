@@ -434,3 +434,18 @@ After that, re-evaluate Phase 1 exit criteria and the best next dependency-drive
 - The previous TAR/GZIP picker integration commit `05f1550970fa18d2ef7fd711b2cb772d921241a6` passed unit tests and built internal preview artifact `ArcNova-Internal-Preview-05f1550970fa18d2ef7fd711b2cb772d921241a6`, retained until 2026-11-17.
 - RAR remains detection-only. Junrar is excluded due to its upstream restriction. libarchive and LZMA SDK remain candidates for later formats; no code from those projects is bundled.
 - No physical-device/real SAF validation, release build, or public distribution is claimed. Phase 2 remains in progress.
+
+
+## Current verified snapshot — 2026-11-11 (supersedes older snapshots)
+
+- Phase 1 is closed on `main` at `700bb50e305a8bd478fd6a05e56ef0a23d38f3f6`; do not change or merge to `main` without explicit owner approval.
+- Active Phase 2 branch: `feature/phase2-tar-gzip-engines`. PR #4 is open, Draft, and not merged: https://github.com/omarhamed2232003-hash/ArcNova/pull/4.
+- Current code head before this handoff refresh: `4ec2887505109e353264903870ec2ab28bca5d14`.
+- The active Phase 2 app routes ZIP, 7z, single-volume RAR3/RAR5, TAR, GZIP, BZIP2, XZ, LZMA-alone, and Zstandard to their extraction engines. ZIP inspection is the only archive-inspection operation currently exposed. Other formats remain explicitly limited by their documented method/container support.
+- RAR is decoded through libarchive-android 1.1.7. ArcNova owns its bounded spool, path handling, output limits, cancellation, and rollback. RAR unit tests use an injected reader; they do not prove the native RAR parser on actual RAR fixtures or the physical device.
+- RAR regression commit `4ec2887505109e353264903870ec2ab28bca5d14` adds actual fake-reader checks for links and special entry types, and for declared-size mismatch rollback of both earlier and partially written files while preserving pre-existing destination content. GitHub Actions run [#42934650572](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42934650572) completed successfully: `test` passed and `preview-apk` was skipped.
+- The major RAR integration's internal preview APK was successfully assembled and uploaded by [Run #42933411799](https://github.com/omarhamed2232003-hash/ArcNova/actions/runs/42933411799). Artifact: `ArcNova-Internal-Preview-2ca96d05c41e599259be51f635f406e04811d77f`. This is an internal validation artifact, not a release; owner installation/device validation has not been confirmed.
+- **Current owner APK rule (supersedes older one-preview-only notes above):** do not generate APKs for routine fixes, test-only commits, or documentation. The workflow may generate an internal preview only for substantial engineering changes explicitly marked `[major-change]`, or when the owner directly requests an APK. Never generate a release APK or merge the PR without explicit approval.
+- Phase 2 remains in progress. The next general-format candidate is CAB, but do not claim support until its actual parser/method constraints, single-cabinet limitations, licensing/provenance, safety policy, and test strategy are verified. Existing libarchive CAB support does not cover every CAB compression method; Quantum is unsupported in the inspected reader path. Do not silently label all CAB files compatible.
+- Real RAR3/RAR5 fixture tests, physical-device native decoder validation, real SAF-provider behavior, ABI coverage, and 16 KB page-size validation remain pending. Phase 7 still owns physical-device qualification.
+- Keep all eight phases in the mandated order. Do not add phases, insert audit/reporting milestones, skip Phase 2, or start final UI work early.
