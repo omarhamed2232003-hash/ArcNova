@@ -26,7 +26,7 @@ class FormatCapabilityRegistryTest {
     }
 
     @Test fun sevenZTarAndGzipInspectionRemainUnavailable() {
-        listOf("7z", "tar", "gzip", "bzip2", "xz", "lzma").forEach { id ->
+        listOf("7z", "tar", "gzip", "bzip2", "xz", "lzma", "zstandard").forEach { id ->
             val capability = FormatCapabilityRegistry.findById(id)!!
             assertEquals(SupportLevel.IMPLEMENTED_CI_TESTED, capability.operationSupport[FormatOperation.EXTRACT])
             assertEquals(SupportLevel.PLANNED, capability.operationSupport[FormatOperation.INSPECT])

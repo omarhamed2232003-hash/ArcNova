@@ -31,6 +31,7 @@ import com.arcnova.app.engine.ArchiveExtractionProgress
 import com.arcnova.app.engine.TarGzipExtractionEngine
 import com.arcnova.app.engine.Bzip2XzExtractionEngine
 import com.arcnova.app.engine.SevenZExtractionEngine
+import com.arcnova.app.engine.ZstandardExtractionEngine
 import com.arcnova.app.engine.ArchiveExtractionCancelledException
 import com.arcnova.app.engine.ZipExtractionCancelledException
 import com.arcnova.app.engine.TreeDocumentStore
@@ -104,7 +105,7 @@ class MainActivity : ComponentActivity() {
         val formatsCard = createCard()
         formatsCard.addView(sectionLabel("SUPPORTED IN THIS BUILD"))
         formatsCard.addView(TextView(this).apply {
-            text = "ZIP  ·  7Z  ·  TAR  ·  GZIP\nBZIP2  ·  XZ  ·  LZMA"
+            text = "ZIP  ·  7Z  ·  TAR  ·  GZIP\nBZIP2  ·  XZ  ·  LZMA  ·  ZSTD"
             textSize = 15f
             setTextColor(Color.WHITE)
             setLineSpacing(dp(5).toFloat(), 1f)
@@ -463,6 +464,18 @@ class MainActivity : ComponentActivity() {
                             )
                             decoded.filesExtracted to decoded.bytesWritten
                         }
+                        ArchiveFormat.ZSTANDARD -> {
+                            val decoded = ZstandardExtractionEngine.decompress(
+                                input = stream,
+                                destination = staging,
+                                outputFileName = compressedOutputName(source.displayName),
+                                maxInputBytes = MAX_ARCHIVE_INPUT_BYTES,
+                                policy = ExtractionPolicy(),
+                                cancellationRequested = { cancelRequested.get() },
+                                onProgress = { progress -> postProgress(progress) }
+                            )
+                            decoded.filesExtracted to decoded.bytesWritten
+                        }
                         else -> throw IllegalStateException("No extraction engine is registered for ${format.label}")
                     }
                 }
@@ -528,6 +541,8 @@ class MainActivity : ComponentActivity() {
             name.endsWith(".bz2", ignoreCase = true) -> name.dropLast(4)
             name.endsWith(".xz", ignoreCase = true) -> name.dropLast(3)
             name.endsWith(".lzma", ignoreCase = true) -> name.dropLast(5)
+            name.endsWith(".zstd", ignoreCase = true) -> name.dropLast(5)
+            name.endsWith(".zst", ignoreCase = true) -> name.dropLast(4)
             else -> name
         }
         return withoutSuffix.ifBlank { "decompressed.bin" }
